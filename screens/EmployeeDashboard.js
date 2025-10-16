@@ -17,13 +17,15 @@ const { width } = Dimensions.get('window');
 const isWeb = width > 768;
 
 export default function EmployeeDashboard({ navigation }) {
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
 
   const handleLogout = async () => {
     await logout();
+    // ✅ Use replace to navigate to login (avoids RESET error)
+    navigation.replace('Login');  // Adjust to your login screen name if different
   };
 
-  if (!user) {
+  if (loading || !user) {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <ActivityIndicator size="large" color={Colors.primary} />

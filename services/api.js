@@ -2,8 +2,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-// ✅ Your Mac's IP Address (update if it changes)
-const YOUR_MAC_IP = '172.28.62.182';
+const YOUR_MAC_IP = '10.25.101.182';  // 
 
 const getApiUrl = () => {
   if (Platform.OS === 'web') {
@@ -11,7 +10,6 @@ const getApiUrl = () => {
   } else if (Platform.OS === 'android') {
     return 'http://10.0.2.2:5000/api';
   } else {
-    // iOS or physical devices
     return `http://${YOUR_MAC_IP}:5000/api`;
   }
 };
@@ -19,7 +17,6 @@ const getApiUrl = () => {
 const API_URL = getApiUrl();
 console.log('🔗 Using API URL:', API_URL);
 
-// Helper: Get saved token
 const getToken = async () => {
   try {
     return await AsyncStorage.getItem('token');
@@ -147,33 +144,26 @@ export const profileAPI = {
   updateProfile: async (userId, updates) => {
     try {
       const token = await getToken();
-
+      
       const response = await fetch(`${API_URL}/users/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(updates),
       });
 
-      const text = await response.text();  // ✅ Consistent: Use text() then parse
-      console.log('Update profile response text:', text);
-
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        console.error('❌ Failed to parse JSON:', e);
-        throw new Error(`Server returned invalid JSON: ${text}`);
-      }
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || 'Profile update failed');
       }
 
+      // ✅ Update AsyncStorage with fresh data from MongoDB
       await AsyncStorage.setItem('user', JSON.stringify(data.user));
+
       return data;
     } catch (error) {
       console.error('Update profile error:', error);
@@ -184,36 +174,33 @@ export const profileAPI = {
   getProfile: async () => {
     try {
       const token = await getToken();
-
+      
       const response = await fetch(`${API_URL}/users/profile`, {
         method: 'GET',
         headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
       });
 
-      const text = await response.text();  // ✅ Consistent: Use text() then parse
-      console.log('Get profile response text:', text);
-
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        console.error('❌ Failed to parse JSON:', e);
-        throw new Error(`Server returned invalid JSON: ${text}`);
-      }
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch profile');
       }
 
-      return data;
+      // ✅ FIX: Extract user object from response
+      const userData = data.user || data;
+      
+      // ✅ Update AsyncStorage with fresh data
+      await AsyncStorage.setItem('user', JSON.stringify(userData));
+
+      return userData;
     } catch (error) {
       console.error('Get profile error:', error);
       throw error;
     }
-  },
+  }
 };
 
 // ===============================
@@ -249,7 +236,7 @@ export const uploadAPI = {
         body: formData,
       });
 
-      const text = await response.text();  // ✅ Consistent: Use text() then parse
+      const text = await response.text();
       console.log('Upload response text:', text);
 
       let data;

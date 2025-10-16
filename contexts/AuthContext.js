@@ -1,7 +1,6 @@
 // contexts/AuthContext.js
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authAPI } from '../services/api';
+import { authAPI, profileAPI } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -16,9 +15,15 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     try {
       const currentUser = await authAPI.getCurrentUser();
-      setUser(currentUser);
+      if (currentUser) {
+        // ✅ Always fetch full profile from DB on app start
+        await refreshUser();
+      } else {
+        setUser(null);
+      }
     } catch (error) {
       console.error('Auth check error:', error);
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -26,13 +31,15 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const response = await authAPI.login(email, password);
-    setUser(response.user);
+    // ✅ Always fetch full profile from DB after login
+    await refreshUser();
     return response;
   };
 
   const signup = async (fullName, email, password, role) => {
     const response = await authAPI.signup(fullName, email, password, role);
-    setUser(response.user);
+    // ✅ Always fetch full profile from DB after signup
+    await refreshUser();
     return response;
   };
 
@@ -41,12 +48,18 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  // ✅ Fetch fresh data from MongoDB
   const refreshUser = async () => {
     try {
-      const currentUser = await authAPI.getCurrentUser();
-      setUser(currentUser);
+      const freshUser = await profileAPI.getProfile();
+      setUser(freshUser);
+      console.log('✅ User refreshed from MongoDB:', freshUser);
     } catch (error) {
       console.error('Refresh user error:', error);
+      // If refresh fails (e.g., invalid token), logout
+      if (error.message?.includes('401') || error.message?.includes('Failed to fetch profile')) {
+        await logout();
+      }
     }
   };
 
