@@ -1,5 +1,5 @@
 // screens/EmployeeDashboard.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { examAPI } from '../services/api';  // Added for badge
 import Colors from '../constants/colors';
 import { ProfileIcon, ExamIcon, RankingIcon, CertificateIcon } from '../components/Icons';
 
@@ -18,11 +19,16 @@ const isWeb = width > 768;
 
 export default function EmployeeDashboard({ navigation }) {
   const { user, logout, loading } = useAuth();
+  const [availableExamsCount, setAvailableExamsCount] = useState(0);  // Added for badge
+
+  useEffect(() => {
+    if (user) {
+      examAPI.getAvailableExamsCount().then(count => setAvailableExamsCount(count));
+    }
+  }, [user]);  // Added to fetch count on user load
 
   const handleLogout = async () => {
-    await logout();
-    // ✅ Use replace to navigate to login (avoids RESET error)
-    navigation.replace('Login');  // Adjust to your login screen name if different
+    await logout();  // Sets user=null in context → Auto-renders auth screens
   };
 
   if (loading || !user) {
@@ -103,15 +109,20 @@ export default function EmployeeDashboard({ navigation }) {
 
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.actionsGrid}>
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('AvailableExams')}>
               <View style={styles.actionIcon}>
                 <ExamIcon size={32} color={Colors.primary} />
+                {availableExamsCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{availableExamsCount > 9 ? '9+' : availableExamsCount}</Text>
+                  </View>
+                )}
               </View>
               <Text style={styles.actionLabel}>Take Exam</Text>
               <Text style={styles.actionSubtext}>Start your certification</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('EmployeeRankings')}>
               <View style={styles.actionIcon}>
                 <RankingIcon size={32} color={Colors.primary} />
               </View>
@@ -130,7 +141,7 @@ export default function EmployeeDashboard({ navigation }) {
               <Text style={styles.actionSubtext}>Update your info</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('MyCertifications')}>
               <View style={styles.actionIcon}>
                 <CertificateIcon size={32} color={Colors.primary} />
               </View>
@@ -428,5 +439,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textPrimary,
     fontWeight: '500',
+  },
+  // Added for badge
+  badge: {
+    position: 'absolute',
+    right: -8,
+    top: -8,
+    backgroundColor: 'red',
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });

@@ -1,13 +1,14 @@
-// screens/EmployerDashboard.js
+// screens/EmployerDashboard.js (Complete - Fixed TouchableOpacity Import)
 import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  TouchableOpacity,  // Fixed: Added import
   ActivityIndicator,
   Dimensions,
+  Alert,  // Added for premium alert
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import Colors from '../constants/colors';
@@ -17,13 +18,33 @@ const { width } = Dimensions.get('window');
 const isWeb = width > 768;
 
 export default function EmployerDashboard({ navigation }) {
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
 
   const handleLogout = async () => {
-    await logout();
+    await logout();  // Sets user=null in context → Auto-renders auth screens
   };
 
-  if (!user) {
+  const handleEditCompany = () => {
+    navigation.navigate('EmployerProfileSetup');  // Nav to employer setup
+  };
+
+  const handlePostJob = () => {
+    navigation.navigate('PostJob');  // Nav to post job screen
+  };
+
+  const handleBrowseCandidates = () => {
+    navigation.navigate('EmployerCandidates');  // Nav to candidates
+  };
+
+  const handleViewAnalytics = () => {
+    navigation.navigate('Analytics');  // Nav to analytics (placeholder—build later)
+  };
+
+  const handleHot10 = () => {
+    Alert.alert('Premium Feature', 'Hot 10 is a premium feature. Upgrade to access.');
+  };
+
+  if (loading || !user) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
@@ -66,7 +87,7 @@ export default function EmployerDashboard({ navigation }) {
                 </Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.editButton}>
+            <TouchableOpacity style={styles.editButton} onPress={handleEditCompany}>
               <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
           </View>
@@ -95,7 +116,7 @@ export default function EmployerDashboard({ navigation }) {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.primaryCTA} activeOpacity={0.9}>
+          <TouchableOpacity style={styles.primaryCTA} onPress={handlePostJob} activeOpacity={0.9}>
             <View style={styles.ctaIconContainer}>
               <PlusIcon size={24} color={Colors.white} />
             </View>
@@ -109,7 +130,7 @@ export default function EmployerDashboard({ navigation }) {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Quick Actions</Text>
-            <TouchableOpacity style={styles.actionCard} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.actionCard} onPress={handleBrowseCandidates} activeOpacity={0.7}>
               <View style={styles.actionLeft}>
                 <View style={styles.actionIconContainer}>
                   <SearchIcon size={22} color={Colors.primary} />
@@ -124,7 +145,7 @@ export default function EmployerDashboard({ navigation }) {
               <ArrowRightIcon size={20} color={Colors.textMuted} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.actionCard} onPress={handleViewAnalytics} activeOpacity={0.7}>
               <View style={styles.actionLeft}>
                 <View style={styles.actionIconContainer}>
                   <AnalyticsIcon size={22} color={Colors.primary} />
@@ -139,7 +160,7 @@ export default function EmployerDashboard({ navigation }) {
               <ArrowRightIcon size={20} color={Colors.textMuted} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.actionCard} onPress={handleHot10} activeOpacity={0.7}>
               <View style={styles.actionLeft}>
                 <View style={styles.actionIconContainer}>
                   <StarIcon size={22} color={Colors.warning} />

@@ -1,8 +1,8 @@
-// services/api.js
+// services/api.js (Complete - Fixed Rankings to Match Your Backend)
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-const YOUR_MAC_IP = '10.25.101.182';  // 
+const YOUR_MAC_IP = '172.20.10.10';  // New IP
 
 const getApiUrl = () => {
   if (Platform.OS === 'web') {
@@ -254,6 +254,357 @@ export const uploadAPI = {
       return data.cvURL;
     } catch (error) {
       console.error('Upload CV error:', error);
+      throw error;
+    }
+  },
+};
+
+// ===============================
+// 📝 EXAM API
+// ===============================
+export const examAPI = {
+  getAvailableExamsCount: async () => {
+    try {
+      const token = await getToken();
+      
+      const response = await fetch(`${API_URL}/exams/available/count`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch count');
+      }
+
+      return data.count;
+    } catch (error) {
+      console.error('Get available exams count error:', error);
+      return 0;
+    }
+  },
+
+  getAvailableExams: async () => {
+    try {
+      const token = await getToken();
+      
+      const response = await fetch(`${API_URL}/exams/available`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch exams');
+      }
+
+      return data.exams;
+    } catch (error) {
+      console.error('Get available exams error:', error);
+      throw error;
+    }
+  },
+
+  getExam: async (examId) => {
+    try {
+      const token = await getToken();
+      
+      const response = await fetch(`${API_URL}/exams/${examId}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch exam');
+      }
+
+      return data.exam;
+    } catch (error) {
+      console.error('Get exam error:', error);
+      throw error;
+    }
+  },
+
+  submitExam: async (examId, answers, timeTaken) => {
+    try {
+      const token = await getToken();
+      
+      const response = await fetch(`${API_URL}/exams/${examId}/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ answers, timeTaken }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit exam');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Submit exam error:', error);
+      throw error;
+    }
+  },
+
+  getMyResults: async () => {
+    try {
+      const token = await getToken();
+      
+      const response = await fetch(`${API_URL}/exams/results/me`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch results');
+      }
+
+      return data.results;
+    } catch (error) {
+      console.error('Get results error:', error);
+      throw error;
+    }
+  },
+
+  createExam: async (examData) => {
+    try {
+      const token = await getToken();
+      
+      const response = await fetch(`${API_URL}/exams/admin/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(examData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create exam');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Create exam error:', error);
+      throw error;
+    }
+  },
+};
+
+// ===============================
+// 🏆 RANKINGS API (Fixed to Match Your Backend)
+export const rankingsAPI = {
+  getEmployeeLeaderboard: async (region = null, stack = null, location = null) => {
+    try {
+      const token = await getToken();
+      const params = new URLSearchParams();
+      if (region) params.append('view', region);  // Fixed: Use ?view=city etc. to match /leaderboard
+      if (stack) params.append('stack', stack);
+      if (location) params.append('location', location);
+      const url = `${API_URL}/rankings/leaderboard?${params.toString()}`;
+      
+      console.log('Leaderboard URL:', url);  // Debug log
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const text = await response.text();  // Read as text first
+      console.log('Raw response (first 200 chars):', text.substring(0, 200));  // Debug log
+      
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error('JSON parse error:', parseErr);
+        throw new Error(`Invalid response (likely 404 HTML): ${text.substring(0, 100)}...`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+
+      return data.leaderboard || [];  // Fixed: Match your backend response + fallback
+    } catch (error) {
+      console.error('Get employee leaderboard error:', error);
+      throw error;
+    }
+  },
+
+  getEmployerCandidates: async (stack = null, location = null, minScore = null) => {
+    try {
+      const token = await getToken();
+      const params = new URLSearchParams();
+      if (stack) params.append('stack', stack);
+      if (location) params.append('location', location);
+      // Fixed: No minScore in your backend—use view='country' for broad candidates
+      params.append('view', 'country');
+      const url = `${API_URL}/rankings/leaderboard?${params.toString()}`;
+      
+      console.log('Candidates URL:', url);  // Debug log
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const text = await response.text();  // Read as text first
+      console.log('Raw candidates response:', text.substring(0, 200));  // Debug log
+      
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error('JSON parse error for candidates:', parseErr);
+        throw new Error(`Invalid response (likely 404 HTML): ${text.substring(0, 100)}...`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch candidates');
+      }
+
+      return data.leaderboard || [];  // Fixed: Return leaderboard as candidates + fallback
+    } catch (error) {
+      console.error('Get employer candidates error:', error);
+      throw error;
+    }
+  },
+};
+
+// ===============================
+// 👑 ADMIN API
+// ===============================
+export const adminAPI = {
+  getStats: async () => {
+    try {
+      const token = await getToken();
+      const response = await fetch(`${API_URL}/admin/stats`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch stats');
+      return data;
+    } catch (error) {
+      console.error('Admin stats error:', error);
+      throw error;
+    }
+  },
+
+  createExam: async (examData) => {
+    try {
+      const token = await getToken();
+      
+      const response = await fetch(`${API_URL}/exams/admin/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(examData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create exam');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Create exam error:', error);
+      throw error;
+    }
+  },
+
+  getUsers: async (role = null, search = null) => {
+    try {
+      const token = await getToken();
+      const params = new URLSearchParams();
+      if (role) params.append('role', role);
+      if (search) params.append('search', search);
+      const url = `${API_URL}/admin/users?${params.toString()}`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch users');
+      return data.users;
+    } catch (error) {
+      console.error('Admin users error:', error);
+      throw error;
+    }
+  },
+
+  updateUser: async (userId, updates) => {
+    try {
+      const token = await getToken();
+      const response = await fetch(`${API_URL}/admin/users/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(updates),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to update user');
+      return data;
+    } catch (error) {
+      console.error('Update user error:', error);
+      throw error;
+    }
+  },
+
+  deleteUser: async (userId) => {
+    try {
+      const token = await getToken();
+      const response = await fetch(`${API_URL}/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to delete user');
+      return data;
+    } catch (error) {
+      console.error('Delete user error:', error);
       throw error;
     }
   },

@@ -1,4 +1,4 @@
-// App.js
+// App.js (Complete - Fixed Navigator Comment Error)
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -12,6 +12,17 @@ import SignupScreen from './screens/SignupScreen';
 import EmployeeDashboard from './screens/EmployeeDashboard';
 import EmployerDashboard from './screens/EmployerDashboard';
 import EmployeeProfileSetup from './screens/EmployeeProfileSetup';
+import EmployerProfileSetup from './screens/EmployerProfileSetup';
+import AvailableExams from './screens/AvailableExams';
+import TakeExam from './screens/TakeExam';
+import ExamResults from './screens/ExamResults';
+import MyCertifications from './screens/MyCertifications';
+import EmployeeRankings from './screens/EmployeeRankings';
+import EmployerCandidates from './screens/EmployerCandidates';
+import AdminDashboard from './screens/AdminDashboard';
+import CreateExam from './screens/CreateExam';
+import PostJob from './screens/PostJob';
+import Analytics from './screens/Analytics';
 
 // Components
 import CustomSplash from './components/CustomSplash';
@@ -42,10 +53,24 @@ function AppNavigator() {
           <>
             <Stack.Screen name="EmployeeDashboard" component={EmployeeDashboard} />
             <Stack.Screen name="EmployeeProfileSetup" component={EmployeeProfileSetup} />
+            <Stack.Screen name="AvailableExams" component={AvailableExams} />
+            <Stack.Screen name="TakeExam" component={TakeExam} />
+            <Stack.Screen name="ExamResults" component={ExamResults} />
+            <Stack.Screen name="MyCertifications" component={MyCertifications} />
+            <Stack.Screen name="EmployeeRankings" component={EmployeeRankings} />
           </>
         ) : user.role === 'employer' ? (
           <>
             <Stack.Screen name="EmployerDashboard" component={EmployerDashboard} />
+            <Stack.Screen name="EmployerProfileSetup" component={EmployerProfileSetup} />
+            <Stack.Screen name="PostJob" component={PostJob} />
+            <Stack.Screen name="EmployerCandidates" component={EmployerCandidates} />
+            <Stack.Screen name="Analytics" component={Analytics} />
+          </>
+        ) : user.role === 'admin' ? (
+          <>
+            <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
+            <Stack.Screen name="CreateExam" component={CreateExam} />
           </>
         ) : (
           <>
