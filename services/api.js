@@ -1,8 +1,8 @@
-// services/api.js (Complete - Fixed Rankings to Match Your Backend)
+// services/api.js (Fixed - AsyncStorage for Token, Fetch for Rankings)
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-const YOUR_MAC_IP = '172.20.10.10';  // New IP
+const YOUR_MAC_IP = '172.20.10.10';
 
 const getApiUrl = () => {
   if (Platform.OS === 'web') {
@@ -161,9 +161,7 @@ export const profileAPI = {
         throw new Error(data.error || 'Profile update failed');
       }
 
-      // ✅ Update AsyncStorage with fresh data from MongoDB
       await AsyncStorage.setItem('user', JSON.stringify(data.user));
-
       return data;
     } catch (error) {
       console.error('Update profile error:', error);
@@ -189,18 +187,35 @@ export const profileAPI = {
         throw new Error(data.error || 'Failed to fetch profile');
       }
 
-      // ✅ FIX: Extract user object from response
       const userData = data.user || data;
-      
-      // ✅ Update AsyncStorage with fresh data
       await AsyncStorage.setItem('user', JSON.stringify(userData));
-
       return userData;
     } catch (error) {
       console.error('Get profile error:', error);
       throw error;
     }
-  }
+  },
+
+  // Added method moved inside profileAPI (logical fix)
+  getProfileById: async (userId) => {
+    try {
+      const token = await getToken();
+      const response = await fetch(`${API_URL}/users/${userId}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch profile');
+      // return the user object if provided, otherwise full response
+      return data.user || data;
+    } catch (error) {
+      console.error('getProfileById error:', error);
+      throw error;
+    }
+  },
 };
 
 // ===============================
@@ -419,18 +434,19 @@ export const examAPI = {
 };
 
 // ===============================
-// 🏆 RANKINGS API (Fixed to Match Your Backend)
+// 🏆 RANKINGS API (Fixed - Use AsyncStorage and Fetch)
+// ===============================
 export const rankingsAPI = {
   getEmployeeLeaderboard: async (region = null, stack = null, location = null) => {
     try {
       const token = await getToken();
       const params = new URLSearchParams();
-      if (region) params.append('view', region);  // Fixed: Use ?view=city etc. to match /leaderboard
+      if (region) params.append('view', region);
       if (stack) params.append('stack', stack);
       if (location) params.append('location', location);
       const url = `${API_URL}/rankings/leaderboard?${params.toString()}`;
       
-      console.log('Leaderboard URL:', url);  // Debug log
+      console.log('Leaderboard URL:', url);
       
       const response = await fetch(url, {
         method: 'GET',
@@ -440,22 +456,22 @@ export const rankingsAPI = {
         },
       });
 
-      const text = await response.text();  // Read as text first
-      console.log('Raw response (first 200 chars):', text.substring(0, 200));  // Debug log
+      const text = await response.text();
+      console.log('Raw response (first 200 chars):', text.substring(0, 200));
       
       let data;
       try {
         data = JSON.parse(text);
       } catch (parseErr) {
         console.error('JSON parse error:', parseErr);
-        throw new Error(`Invalid response (likely 404 HTML): ${text.substring(0, 100)}...`);
+        throw new Error(`Invalid response: ${text.substring(0, 100)}...`);
       }
 
       if (!response.ok) {
         throw new Error(data.error || `HTTP ${response.status}`);
       }
 
-      return data.leaderboard || [];  // Fixed: Match your backend response + fallback
+      return data.leaderboard || [];
     } catch (error) {
       console.error('Get employee leaderboard error:', error);
       throw error;
@@ -468,11 +484,10 @@ export const rankingsAPI = {
       const params = new URLSearchParams();
       if (stack) params.append('stack', stack);
       if (location) params.append('location', location);
-      // Fixed: No minScore in your backend—use view='country' for broad candidates
       params.append('view', 'country');
       const url = `${API_URL}/rankings/leaderboard?${params.toString()}`;
       
-      console.log('Candidates URL:', url);  // Debug log
+      console.log('Candidates URL:', url);
       
       const response = await fetch(url, {
         method: 'GET',
@@ -482,22 +497,22 @@ export const rankingsAPI = {
         },
       });
 
-      const text = await response.text();  // Read as text first
-      console.log('Raw candidates response:', text.substring(0, 200));  // Debug log
+      const text = await response.text();
+      console.log('Raw candidates response:', text.substring(0, 200));
       
       let data;
       try {
         data = JSON.parse(text);
       } catch (parseErr) {
         console.error('JSON parse error for candidates:', parseErr);
-        throw new Error(`Invalid response (likely 404 HTML): ${text.substring(0, 100)}...`);
+        throw new Error(`Invalid response: ${text.substring(0, 100)}...`);
       }
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch candidates');
       }
 
-      return data.leaderboard || [];  // Fixed: Return leaderboard as candidates + fallback
+      return data; // Return full response { leaderboard: [], region: {} }
     } catch (error) {
       console.error('Get employer candidates error:', error);
       throw error;
