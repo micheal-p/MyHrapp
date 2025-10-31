@@ -17,6 +17,14 @@ const JobApplicationSchema = new mongoose.Schema({
     enum: ['applied', 'reviewed', 'interview', 'rejected', 'hired'],
     default: 'applied',
   },
+  answers: {  // New: Store question responses
+    type: Map,
+    of: String,
+    default: {},
+  },
+  selectedCvURL: {  // New: Selected CV for this application
+    type: String,
+  },
   coverLetter: {
     type: String,
   },

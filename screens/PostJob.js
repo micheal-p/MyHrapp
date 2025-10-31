@@ -28,8 +28,10 @@ export default function PostJob({ navigation }) {
     salaryMin: '',
     salaryMax: '',
     requirements: [],
+    applicationQuestions: [],  // New: Custom questions
   });
   const [requirement, setRequirement] = useState('');
+  const [question, setQuestion] = useState('');  // New: For questions input
   const [error, setError] = useState('');
 
   const addRequirement = () => {
@@ -47,6 +49,25 @@ export default function PostJob({ navigation }) {
     setJobData(prev => ({
       ...prev,
       requirements: prev.requirements.filter((_, i) => i !== index),
+    }));
+  };
+
+  // New: Add/remove questions
+  const addQuestion = () => {
+    if (question.trim()) {
+      setJobData(prev => ({
+        ...prev,
+        applicationQuestions: [...prev.applicationQuestions, question.trim()],
+      }));
+      setQuestion('');
+      setError('');
+    }
+  };
+
+  const removeQuestion = index => {
+    setJobData(prev => ({
+      ...prev,
+      applicationQuestions: prev.applicationQuestions.filter((_, i) => i !== index),
     }));
   };
 
@@ -75,6 +96,16 @@ export default function PostJob({ navigation }) {
     <View style={styles.requirementItem} key={index}>
       <Text style={styles.requirementText}>{req}</Text>
       <TouchableOpacity onPress={() => removeRequirement(index)}>
+        <Text style={styles.removeReqText}>Remove</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // New: Render questions similarly
+  const renderQuestion = (q, index) => (
+    <View style={styles.requirementItem} key={index}>
+      <Text style={styles.requirementText}>{q}</Text>
+      <TouchableOpacity onPress={() => removeQuestion(index)}>
         <Text style={styles.removeReqText}>Remove</Text>
       </TouchableOpacity>
     </View>
@@ -156,6 +187,28 @@ export default function PostJob({ navigation }) {
             {jobData.requirements.length > 0 && (
               <View style={styles.requirementsList}>
                 {jobData.requirements.map((req, index) => renderRequirement(req, index))}
+              </View>
+            )}
+          </View>
+
+          {/* New: Application Questions Section */}
+          <View style={styles.requirementsSection}>
+            <Text style={styles.requirementsTitle}>Application Questions (Optional)</Text>
+            <Text style={styles.sectionSubtext}>Ask custom questions for deeper insights (e.g., "Tell us about a challenge you solved")</Text>
+            <View style={styles.requirementInputRow}>
+              <TextInput
+                style={styles.requirementInput}
+                placeholder="Add a question for applicants"
+                value={question}
+                onChangeText={setQuestion}
+              />
+              <TouchableOpacity onPress={addQuestion} style={styles.addReqButton}>
+                <Text style={styles.addReqText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+            {jobData.applicationQuestions.length > 0 && (
+              <View style={styles.requirementsList}>
+                {jobData.applicationQuestions.map((q, index) => renderQuestion(q, index))}
               </View>
             )}
           </View>
@@ -252,6 +305,11 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     marginBottom: 12,
   },
+  sectionSubtext: {  // New
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+  },
   requirementInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -293,6 +351,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.primary,
     fontWeight: '500',
+  },
+  removeReqText: {
+    color: Colors.danger,
+    fontSize: 12,
+    marginLeft: 8,
   },
   errorText: {
     color: Colors.danger,

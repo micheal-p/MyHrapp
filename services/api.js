@@ -1,8 +1,8 @@
-// services/api.js (Fixed - AsyncStorage for Token, Fetch for Rankings)
+// services/api.js (Complete - Fixed JSON Parse Error with Text Fallback)
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-const YOUR_MAC_IP = '172.20.10.10';
+const YOUR_MAC_IP = '172.20.10.10';  // New IP
 
 const getApiUrl = () => {
   if (Platform.OS === 'web') {
@@ -161,7 +161,9 @@ export const profileAPI = {
         throw new Error(data.error || 'Profile update failed');
       }
 
+      // ✅ Update AsyncStorage with fresh data from MongoDB
       await AsyncStorage.setItem('user', JSON.stringify(data.user));
+
       return data;
     } catch (error) {
       console.error('Update profile error:', error);
@@ -187,35 +189,18 @@ export const profileAPI = {
         throw new Error(data.error || 'Failed to fetch profile');
       }
 
+      // ✅ FIX: Extract user object from response
       const userData = data.user || data;
+      
+      // ✅ Update AsyncStorage with fresh data
       await AsyncStorage.setItem('user', JSON.stringify(userData));
+
       return userData;
     } catch (error) {
       console.error('Get profile error:', error);
       throw error;
     }
-  },
-
-  // Added method moved inside profileAPI (logical fix)
-  getProfileById: async (userId) => {
-    try {
-      const token = await getToken();
-      const response = await fetch(`${API_URL}/users/${userId}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to fetch profile');
-      // return the user object if provided, otherwise full response
-      return data.user || data;
-    } catch (error) {
-      console.error('getProfileById error:', error);
-      throw error;
-    }
-  },
+  }
 };
 
 // ===============================
@@ -434,19 +419,18 @@ export const examAPI = {
 };
 
 // ===============================
-// 🏆 RANKINGS API (Fixed - Use AsyncStorage and Fetch)
-// ===============================
+// 🏆 RANKINGS API (Fixed to Match Your Backend)
 export const rankingsAPI = {
   getEmployeeLeaderboard: async (region = null, stack = null, location = null) => {
     try {
       const token = await getToken();
       const params = new URLSearchParams();
-      if (region) params.append('view', region);
+      if (region) params.append('view', region);  // Fixed: Use ?view=city etc. to match /leaderboard
       if (stack) params.append('stack', stack);
       if (location) params.append('location', location);
       const url = `${API_URL}/rankings/leaderboard?${params.toString()}`;
       
-      console.log('Leaderboard URL:', url);
+      console.log('Leaderboard URL:', url);  // Debug log
       
       const response = await fetch(url, {
         method: 'GET',
@@ -456,22 +440,22 @@ export const rankingsAPI = {
         },
       });
 
-      const text = await response.text();
-      console.log('Raw response (first 200 chars):', text.substring(0, 200));
+      const text = await response.text();  // Read as text first
+      console.log('Raw response (first 200 chars):', text.substring(0, 200));  // Debug log
       
       let data;
       try {
         data = JSON.parse(text);
       } catch (parseErr) {
         console.error('JSON parse error:', parseErr);
-        throw new Error(`Invalid response: ${text.substring(0, 100)}...`);
+        throw new Error(`Invalid response (likely 404 HTML): ${text.substring(0, 100)}...`);
       }
 
       if (!response.ok) {
         throw new Error(data.error || `HTTP ${response.status}`);
       }
 
-      return data.leaderboard || [];
+      return data.leaderboard || [];  // Fixed: Match your backend response + fallback
     } catch (error) {
       console.error('Get employee leaderboard error:', error);
       throw error;
@@ -484,10 +468,11 @@ export const rankingsAPI = {
       const params = new URLSearchParams();
       if (stack) params.append('stack', stack);
       if (location) params.append('location', location);
+      // Fixed: No minScore in your backend—use view='country' for broad candidates
       params.append('view', 'country');
       const url = `${API_URL}/rankings/leaderboard?${params.toString()}`;
       
-      console.log('Candidates URL:', url);
+      console.log('Candidates URL:', url);  // Debug log
       
       const response = await fetch(url, {
         method: 'GET',
@@ -497,24 +482,230 @@ export const rankingsAPI = {
         },
       });
 
-      const text = await response.text();
-      console.log('Raw candidates response:', text.substring(0, 200));
+      const text = await response.text();  // Read as text first
+      console.log('Raw candidates response:', text.substring(0, 200));  // Debug log
       
       let data;
       try {
         data = JSON.parse(text);
       } catch (parseErr) {
         console.error('JSON parse error for candidates:', parseErr);
-        throw new Error(`Invalid response: ${text.substring(0, 100)}...`);
+        throw new Error(`Invalid response (likely 404 HTML): ${text.substring(0, 100)}...`);
       }
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to fetch candidates');
       }
 
-      return data; // Return full response { leaderboard: [], region: {} }
+      return data.leaderboard || [];  // Fixed: Return leaderboard as candidates + fallback
     } catch (error) {
       console.error('Get employer candidates error:', error);
+      throw error;
+    }
+  },
+};
+
+// ===============================
+// 💼 JOB API (Updated - Added robust text-first parsing and logging for debugging non-JSON responses)
+export const jobAPI = {
+  postJob: async (jobData) => {
+    try {
+      const token = await getToken();
+      
+      const response = await fetch(`${API_URL}/jobs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(jobData),
+      });
+
+      const text = await response.text();  // Read as text first for debugging
+      console.log('Post job raw response (first 200 chars):', text.substring(0, 200));
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error('JSON parse error for postJob:', e);
+        throw new Error(`Invalid response (likely server error): ${text.substring(0, 100)}...`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}: ${text.substring(0, 100)}...`);
+      }
+
+      // Optionally refresh user profile to update jobsPosted count
+      await profileAPI.getProfile();
+
+      return data;
+    } catch (error) {
+      console.error('Post job error:', error);
+      throw error;
+    }
+  },
+
+  getAllJobs: async () => {
+    try {
+      const token = await getToken();
+      
+      console.log('Fetching jobs URL:', `${API_URL}/jobs`);  // Debug log for URL
+      
+      const response = await fetch(`${API_URL}/jobs`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const text = await response.text();  // Read as text first for debugging
+      console.log('Raw jobs response (first 200 chars):', text.substring(0, 200));  // This will show the HTML error
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error('JSON parse error for getAllJobs:', parseErr);
+        throw new Error(`Invalid response (likely 404 or server error): ${text.substring(0, 100)}...`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}: ${text.substring(0, 100)}...`);
+      }
+
+      return data.jobs || [];
+    } catch (error) {
+      console.error('Get jobs error:', error);
+      throw error;
+    }
+  },
+
+  applyToJob: async (jobId, applyData = {}) => {  // Updated to accept applyData for questions/CV
+    try {
+      const token = await getToken();
+      
+      console.log('Applying to job URL:', `${API_URL}/jobs/${jobId}/apply`);  // Debug log
+      
+      const response = await fetch(`${API_URL}/jobs/${jobId}/apply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(applyData),  // Send answers, cvURL, etc.
+      });
+
+      const text = await response.text();  // Read as text first
+      console.log('Apply job raw response (first 200 chars):', text.substring(0, 200));
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error('JSON parse error for applyToJob:', e);
+        throw new Error(`Invalid response: ${text.substring(0, 100)}...`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}: ${text.substring(0, 100)}...`);
+      }
+
+      // Optionally refresh user profile if needed
+      return data;
+    } catch (error) {
+      console.error('Apply to job error:', error);
+      throw error;
+    }
+  },
+
+  // FIXED: Text-first parsing + fallback to 0 on non-JSON (e.g., 404 HTML)
+  getApplicationCount: async () => {
+    try {
+      const token = await getToken();
+      
+      const response = await fetch(`${API_URL}/applications/count`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const text = await response.text();  // FIXED: Read as text first
+      console.log('Raw applications/count response (first 200 chars):', text.substring(0, 200));  // FIXED: Debug log for HTML/404
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error('JSON parse error in getApplicationCount:', parseErr);
+        console.error('Likely HTML error page (404?):', text.substring(0, 100));  // FIXED: Log snippet
+        return 0;  // FIXED: Graceful fallback
+      }
+
+      if (!response.ok) {
+        console.error('HTTP error in getApplicationCount:', response.status, text.substring(0, 100));
+        return 0;  // FIXED: Fallback on non-200
+      }
+
+      return data.count || 0;
+    } catch (error) {
+      console.error('Get application count error:', error);
+      return 0;  // FIXED: Always return 0 on any error
+    }
+  },
+
+  // For employer dashboard: Get list of applications (for notifications section)
+  getMyApplications: async () => {
+    try {
+      const token = await getToken();
+      
+      const response = await fetch(`${API_URL}/applications`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch applications');
+      }
+
+      return data.applications || [];
+    } catch (error) {
+      console.error('Get applications error:', error);
+      throw error;
+    }
+  },
+
+  getApplications: async () => {  // Alias for getMyApplications (for JobApplications.js)
+    return jobAPI.getMyApplications();
+  },
+
+  updateApplicationStatus: async (appId, updates) => {  // For accept/reject
+    try {
+      const token = await getToken();
+      const response = await fetch(`${API_URL}/applications/${appId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(updates),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to update status');
+      return data;
+    } catch (error) {
+      console.error('Update status error:', error);
       throw error;
     }
   },

@@ -1,17 +1,15 @@
+// backend/models/User.js (Complete - Updated with cvURLs Array)
 const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
   fullName: {
     type: String,
     required: true,
-    trim: true,
   },
   email: {
     type: String,
     required: true,
     unique: true,
-    lowercase: true,
-    trim: true,
   },
   password: {
     type: String,
@@ -20,33 +18,42 @@ const UserSchema = new mongoose.Schema({
   role: {
     type: String,
     enum: ['employee', 'employer', 'admin'],
-    default: 'employee',
+    required: true,
+  },
+  companyName: {
+    type: String,
+  },
+  industry: {
+    type: String,
+  },
+  profileComplete: {
+    type: Boolean,
+    default: false,
   },
   stack: {
     type: String,
-    default: '',
-  },
-  skills: {
-    type: [String],
-    default: [],
   },
   experience: {
     type: Number,
     default: 0,
   },
-  country: String,
-  state: String,
-  city: String,
-  cvURL: String,
-  profileComplete: {
-    type: Boolean,
-    default: false,
+  city: {
+    type: String,
   },
-  rank: {
+  state: {
+    type: String,
+  },
+  country: {
+    type: String,
+  },
+  skills: [{
+    type: String,
+  }],
+  score: {
     type: Number,
     default: 0,
   },
-  score: {
+  rank: {
     type: Number,
     default: 0,
   },
@@ -54,30 +61,25 @@ const UserSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
-  certifications: {
-    type: [String],
-    default: [],
-  },
-  companyName: String,
-  industry: String,
-  hqLocation: String,
+  certifications: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Certification',
+  }],
   jobsPosted: {
     type: Number,
     default: 0,
   },
+  cvURL: {  // Legacy single CV (keep for backward compat, migrate to cvURLs)
+    type: String,
+  },
+  cvURLs: [{  // New: Array for multiple CVs
+    type: String,
+    default: [],
+  }],
   createdAt: {
     type: Date,
     default: Date.now,
   },
-  updatedAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
-
-UserSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
 });
 
 module.exports = mongoose.model('User', UserSchema);

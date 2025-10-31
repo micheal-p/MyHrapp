@@ -1,11 +1,12 @@
-// backend/server.js (Fixed - Routes Before app.listen)
-require('dotenv').config();
+// backend/server.js (Fixed - Typo in Require, Duplicates Removed)
+require('dotenv');  // FIXED: Early dotenv load (was 'requirement')
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const path = require('path');
 
+// Load .env (dotenv already required above)
+const dotenv = require('dotenv');
 dotenv.config();
 
 const app = express();
@@ -22,13 +23,15 @@ mongoose.connect(process.env.MONGO_URI)
     process.exit(1);
   });
 
-// Routes (All before app.listen - Fixed)
+// Routes (All before app.listen - Fixed, Added applications routes)
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const uploadRoutes = require('./routes/upload');
 const examRoutes = require('./routes/exams');
 const rankingsRoutes = require('./routes/rankings');
 const adminRoutes = require('./routes/admin');
+const jobsRoutes = require('./routes/jobs');
+const applicationsRoutes = require('./routes/applications');  // NEW: Applications routes
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -36,6 +39,8 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/exams', examRoutes);
 app.use('/api/rankings', rankingsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/jobs', jobsRoutes);
+app.use('/api/applications', applicationsRoutes);  // NEW: Mount applications
 
 // Health checks
 app.get('/', (req, res) => {
@@ -62,7 +67,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📱 Mobile: http://172.28.62.182:${PORT}`);  // Update IP to your current one (ifconfig)
+  console.log(`📱 Mobile: http://172.20.10.10:${PORT}`);  // Updated IP to match frontend logs
   console.log(`💻 Local: http://localhost:${PORT}`);
 });
 

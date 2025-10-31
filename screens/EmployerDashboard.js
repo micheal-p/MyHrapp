@@ -1,47 +1,68 @@
-// screens/EmployerDashboard.js (Complete - Fixed TouchableOpacity Import)
-import React from 'react';
+// screens/EmployerDashboard.js (Fixed - Added Fallback for API Error)
+import React, { useState, useEffect } from 'react';  // FIXED: Added useState and useEffect
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,  // Fixed: Added import
+  TouchableOpacity,
   ActivityIndicator,
   Dimensions,
-  Alert,  // Added for premium alert
+  Alert,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { jobAPI } from '../services/api';
 import Colors from '../constants/colors';
-import { SearchIcon, AnalyticsIcon, StarIcon, CompanyIcon, PlusIcon, JobIcon, ArrowRightIcon } from '../components/Icons';
+import { SearchIcon, AnalyticsIcon, StarIcon, CompanyIcon, PlusIcon, JobIcon, ArrowRightIcon, NotificationIcon } from '../components/Icons';
 
 const { width } = Dimensions.get('window');
 const isWeb = width > 768;
 
 export default function EmployerDashboard({ navigation }) {
   const { user, logout, loading } = useAuth();
+  const [applicationsCount, setApplicationsCount] = useState(0);
+  const [activeJobsCount, setActiveJobsCount] = useState(0);
+
+  useEffect(() => {
+    if (user) {
+      // Fetch applications count for badge - FIXED: Added .catch fallback
+      jobAPI.getApplicationCount()
+        .then(count => setApplicationsCount(count))
+        .catch(err => {
+          console.error('API Error - Applications Count:', err);
+          setApplicationsCount(0);  // FIXED: Explicit fallback to 0
+        });
+      // Note: activeJobsCount should come from user.jobsPosted or a separate endpoint
+      setActiveJobsCount(user?.jobsPosted || 0);
+    }
+  }, [user]);
 
   const handleLogout = async () => {
-    await logout();  // Sets user=null in context → Auto-renders auth screens
+    await logout();
   };
 
   const handleEditCompany = () => {
-    navigation.navigate('EmployerProfileSetup');  // Nav to employer setup
+    navigation.navigate('EmployerProfileSetup');
   };
 
   const handlePostJob = () => {
-    navigation.navigate('PostJob');  // Nav to post job screen
+    navigation.navigate('PostJob');
   };
 
   const handleBrowseCandidates = () => {
-    navigation.navigate('EmployerCandidates');  // Nav to candidates
+    navigation.navigate('EmployerCandidates');
   };
 
   const handleViewAnalytics = () => {
-    navigation.navigate('Analytics');  // Nav to analytics (placeholder—build later)
+    navigation.navigate('Analytics');
   };
 
   const handleHot10 = () => {
     Alert.alert('Premium Feature', 'Hot 10 is a premium feature. Upgrade to access.');
+  };
+
+  const handleViewApplications = () => {
+    navigation.navigate('JobApplications');
   };
 
   if (loading || !user) {
@@ -97,14 +118,14 @@ export default function EmployerDashboard({ navigation }) {
               <View style={styles.statIconContainer}>
                 <JobIcon size={20} color={Colors.primary} />
               </View>
-              <Text style={styles.statNumber}>{user?.jobsPosted || 0}</Text>
+              <Text style={styles.statNumber}>{activeJobsCount}</Text>
               <Text style={styles.statLabel}>Active Jobs</Text>
             </View>
             <View style={styles.statCard}>
               <View style={styles.statIconContainer}>
-                <JobIcon size={20} color={Colors.secondary} />
+                <NotificationIcon size={20} color={Colors.secondary} />
               </View>
-              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statNumber}>{applicationsCount}</Text>
               <Text style={styles.statLabel}>Applications</Text>
             </View>
             <View style={styles.statCard}>
@@ -130,6 +151,30 @@ export default function EmployerDashboard({ navigation }) {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Quick Actions</Text>
+
+            {/* Applications Card with Badge */}
+            <TouchableOpacity style={styles.actionCard} onPress={handleViewApplications} activeOpacity={0.7}>
+              <View style={styles.actionLeft}>
+                <View style={styles.actionIconContainer}>
+                  <NotificationIcon size={22} color={Colors.secondary} />
+                  {applicationsCount > 0 && (
+                    <View style={styles.actionBadge}>
+                      <Text style={styles.actionBadgeText}>
+                        {applicationsCount > 9 ? '9+' : applicationsCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.actionContent}>
+                  <Text style={styles.actionTitle}>View Applications</Text>
+                  <Text style={styles.actionDescription}>
+                    Review candidate applications
+                  </Text>
+                </View>
+              </View>
+              <ArrowRightIcon size={20} color={Colors.textMuted} />
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.actionCard} onPress={handleBrowseCandidates} activeOpacity={0.7}>
               <View style={styles.actionLeft}>
                 <View style={styles.actionIconContainer}>
@@ -438,6 +483,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+    position: 'relative',
   },
   actionContent: {
     flex: 1,
@@ -454,6 +500,23 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontWeight: '500',
     lineHeight: 20,
+  },
+  actionBadge: {
+    position: 'absolute',
+    right: -4,
+    top: -4,
+    backgroundColor: 'red',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  actionBadgeText: {
+    color: 'white',
+    fontSize: 11,
+    fontWeight: 'bold',
   },
   premiumBadge: {
     backgroundColor: Colors.warning,

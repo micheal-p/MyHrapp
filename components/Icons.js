@@ -1,4 +1,4 @@
-// components/Icons.js (Updated - Added ArrowLeftIcon, Kept Your SVGs)
+// components/Icons.js (Updated - Added LocationIcon & SalaryIcon for JobListings)
 import React from 'react';
 import { View } from 'react-native';
 import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
@@ -114,5 +114,44 @@ export const TrophyIcon = ({ size = 24, color = '#0047AB' }) => (
     <Path d="M12 21C13.6569 21 15 19.6569 15 18V14C15 12.3431 13.6569 11 12 11C10.3431 11 9 12.3431 9 14V18C9 19.6569 10.3431 21 12 21Z" stroke={color} strokeWidth="2" />
     <Path d="M7 7V4C7 2.89543 7.89543 2 9 2H15C16.1046 2 17 2.89543 17 4V7" stroke={color} strokeWidth="2" />
     <Path d="M7 7H17V4C17 2.89543 16.1046 2 15 2H9C7.89543 2 7 2.89543 7 4V7Z" fill={color} />
+  </Svg>
+);
+
+export const NotificationIcon = ({ size = 24, color = '#0047AB' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+export const CloseIcon = ({ size = 24, color = '#0047AB' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M18 6L6 18M6 6l12 12"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+// NEW: Location Icon (Pin drop style, matches theme)
+export const LocationIcon = ({ size = 24, color = '#0047AB' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke={color} strokeWidth="2" />
+    <Circle cx="12" cy="10" r="3" stroke={color} strokeWidth="2" fill={color} />
+  </Svg>
+);
+
+// NEW: Salary Icon (Money bag outline, matches theme)
+export const SalaryIcon = ({ size = 24, color = '#0047AB' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M12 2L2 7v10c0 3 4 5 6 5h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7.5" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    <Path d="M6 21v-2a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke={color} strokeWidth="2" strokeLinecap="round" />
   </Svg>
 );

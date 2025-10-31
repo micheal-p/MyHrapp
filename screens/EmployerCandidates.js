@@ -1,9 +1,10 @@
-// screens/EmployerCandidates.js
-import React, { useState, useEffect, useCallback } from 'react';
+// screens/EmployerCandidates.js (Fixed - Autocomplete, Input Validation)
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
+  ScrollView,
   TouchableOpacity,
   Dimensions,
   ActivityIndicator,
@@ -13,13 +14,13 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { rankingsAPI } from '../services/api';
 import Colors from '../constants/colors';
-import debounce from 'lodash.debounce';
+
+// Predefined stacks and locations for autocomplete
+const STACK_SUGGESTIONS = ['Marketing', 'Software Development', 'Data Science', 'Design', 'Finance'];
+const LOCATION_SUGGESTIONS = ['Lagos', 'Abuja', 'Ifako-Ijaiye', 'Nigeria', 'Port Harcourt'];
 
 const { width } = Dimensions.get('window');
 const isWeb = width > 768;
-
-const STACK_SUGGESTIONS = ['Marketing', 'Software Development', 'Data Science', 'Design', 'Finance'];
-const LOCATION_SUGGESTIONS = ['Lagos', 'Abuja', 'Ifako-Ijaiye', 'Nigeria', 'Port Harcourt'];
 
 export default function EmployerCandidates({ navigation }) {
   const { user, loading: authLoading } = useAuth();
@@ -34,53 +35,48 @@ export default function EmployerCandidates({ navigation }) {
   const [stackSuggestions, setStackSuggestions] = useState([]);
   const [locationSuggestions, setLocationSuggestions] = useState([]);
 
-  const fetchCandidates = useCallback(
-    debounce(async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const stack = filters.stack.length >= 2 ? filters.stack.trim() : null;
-        const location = filters.location.length >= 2 ? filters.location.trim() : null;
-        const minScore = filters.minScore ? parseInt(filters.minScore) : null;
-
-        const data = await rankingsAPI.getEmployerCandidates(stack, location, minScore);
-        console.log('Data received:', JSON.stringify(data));
-
-        if (!data || typeof data !== 'object' || !Array.isArray(data.leaderboard)) {
-          throw new Error('Invalid response format');
-        }
-
-        setCandidates(data.leaderboard || []);
-      } catch (err) {
-        console.error('Fetch candidates error:', err);
-        setError('Failed to load candidates. Please try again.');
-        setCandidates([]);
-      } finally {
-        setLoading(false);
-      }
-    }, 500),
-    [filters.stack, filters.location, filters.minScore, user] // Explicit dependencies
-  );
-
   useEffect(() => {
-    if (!user || authLoading) return;
+    if (!user) return;
+
     fetchCandidates();
-    return () => fetchCandidates.cancel(); // Cancel debounce on unmount
-  }, [fetchCandidates, user, authLoading]);
+  }, [user, filters]);
+
+  const fetchCandidates = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      // Only send valid filters (min length 2 for stack/location)
+      const stack = filters.stack.length >= 2 ? filters.stack : null;
+      const location = filters.location.length >= 2 ? filters.location : null;
+      const minScore = filters.minScore ? parseInt(filters.minScore) : null;
+
+      console.log(`Candidates URL: http://172.20.10.10:5000/api/rankings/leaderboard?${stack ? `stack=${stack}&` : ''}${location ? `location=${location}&` : ''}view=country`);
+
+      const data = await rankingsAPI.getEmployerCandidates(stack, location, minScore);
+      console.log('Raw candidates response:', JSON.stringify(data));
+      setCandidates(data?.leaderboard || []);
+    } catch (err) {
+      console.error('Fetch candidates error:', err);
+      setError('Failed to load candidates. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleFilterChange = (key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    setFilters(prev => ({ ...prev, [key]: value }));
 
+    // Autocomplete suggestions
     if (key === 'stack') {
       if (value.length >= 1) {
-        const suggestions = STACK_SUGGESTIONS.filter((s) => s.toLowerCase().includes(value.toLowerCase()));
+        const suggestions = STACK_SUGGESTIONS.filter(s => s.toLowerCase().includes(value.toLowerCase()));
         setStackSuggestions(suggestions);
       } else {
         setStackSuggestions([]);
       }
     } else if (key === 'location') {
       if (value.length >= 1) {
-        const suggestions = LOCATION_SUGGESTIONS.filter((l) => l.toLowerCase().includes(value.toLowerCase()));
+        const suggestions = LOCATION_SUGGESTIONS.filter(l => l.toLowerCase().includes(value.toLowerCase()));
         setLocationSuggestions(suggestions);
       } else {
         setLocationSuggestions([]);
@@ -89,7 +85,7 @@ export default function EmployerCandidates({ navigation }) {
   };
 
   const applySuggestion = (key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    setFilters(prev => ({ ...prev, [key]: value }));
     if (key === 'stack') setStackSuggestions([]);
     if (key === 'location') setLocationSuggestions([]);
   };
@@ -100,8 +96,54 @@ export default function EmployerCandidates({ navigation }) {
     setLocationSuggestions([]);
   };
 
-  const renderHeader = () => (
-    <View>
+  const renderCandidate = ({ item: candidate, index }) => (
+    <View style={styles.candidateCard}>
+      <View style={styles.candidateHeader}>
+        <Text style={styles.candidateRank}>#{index + 1}</Text>
+        <View style={styles.candidateInfo}>
+          <Text style={styles.candidateName}>{candidate.fullName}</Text>
+          <Text style={styles.candidateStack}>{candidate.stack} • {candidate.experience} yrs</Text>
+        </View>
+      </View>
+      <View style={styles.candidateDetails}>
+        <Text style={styles.candidateScore}>Score: {candidate.score}</Text>
+        <Text style={styles.candidateSkills}>
+          Skills: {candidate.skills?.slice(0, 3).join(', ') || 'None'}...
+        </Text>
+        <Text style={styles.candidateLocation}>
+          {candidate.city}, {candidate.state}, {candidate.country}
+        </Text>
+      </View>
+      <TouchableOpacity
+        style={styles.viewProfileButton}
+        onPress={() => navigation.navigate('CandidateProfile', { candidateId: candidate._id })}
+      >
+        <Text style={styles.viewProfileButtonText}>View Profile</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  if (authLoading || loading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity onPress={fetchCandidates} style={styles.retryButton}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Top Candidates</Text>
@@ -111,6 +153,7 @@ export default function EmployerCandidates({ navigation }) {
         </View>
       </View>
 
+      {/* Filters */}
       <View style={styles.filtersContainer}>
         <View style={styles.filterRow}>
           <View style={styles.filterInputContainer}>
@@ -169,72 +212,32 @@ export default function EmployerCandidates({ navigation }) {
           </TouchableOpacity>
         </View>
       </View>
-      <Text style={styles.resultsCount}>Showing {candidates.length} candidates</Text>
-      {candidates.length === 0 && (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No Candidates Found</Text>
-          <Text style={styles.emptySubtitle}>Try adjusting your filters (e.g., Marketing, Lagos).</Text>
-        </View>
-      )}
-    </View>
-  );
 
-  const renderCandidate = ({ item: candidate, index }) => (
-    <View style={styles.candidateCard}>
-      <View style={styles.candidateHeader}>
-        <Text style={styles.candidateRank}>#{index + 1}</Text>
-        <View style={styles.candidateInfo}>
-          <Text style={styles.candidateName}>{candidate.fullName}</Text>
-          <Text style={styles.candidateStack}>{candidate.stack} • {candidate.experience} yrs</Text>
-        </View>
-      </View>
-      <View style={styles.candidateDetails}>
-        <Text style={styles.candidateScore}>Score: {candidate.score}</Text>
-        <Text style={styles.candidateSkills}>
-          Skills: {candidate.skills?.slice(0, 3).join(', ') || 'None'}...
-        </Text>
-        <Text style={styles.candidateLocation}>
-          {candidate.city}, {candidate.state}, {candidate.country}
-        </Text>
-      </View>
-      <TouchableOpacity
-        style={styles.viewProfileButton}
-        onPress={() => navigation.navigate('CandidateProfile', { candidateId: candidate._id })}
-      >
-        <Text style={styles.viewProfileButtonText}>View Profile</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  if (authLoading || loading) {
-    return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={[styles.container, styles.centerContent]}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={fetchCandidates} style={styles.retryButton}>
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.container}>
-      <FlatList
-        data={candidates}
-        renderItem={renderCandidate}
-        keyExtractor={(item) => item._id}
-        ListHeaderComponent={renderHeader}
-        contentContainerStyle={styles.candidatesList}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-      />
+      >
+        <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+          <Text style={styles.resultsCount}>
+            Showing {candidates.length} candidates
+          </Text>
+          {candidates.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>No Candidates Found</Text>
+              <Text style={styles.emptySubtitle}>Try adjusting your filters (e.g., Marketing, Lagos).</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={candidates}
+              renderItem={renderCandidate}
+              keyExtractor={(item) => item._id}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.candidatesList}
+            />
+          )}
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -243,7 +246,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.lightGray,
-    ...(isWeb && { height: '100vh' }),
+    ...(isWeb && { height: '100vh', overflow: 'hidden' }),
   },
   centerContent: {
     justifyContent: 'center',
@@ -337,18 +340,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  scrollView: {
+    flex: 1,
+    ...(isWeb && { height: 'calc(100vh - 120px)', overflow: 'auto' }),
+  },
+  content: {
+    paddingVertical: 32,
+    paddingBottom: 60,
+  },
+  contentWrapper: {
+    paddingHorizontal: 24,
+  },
+  contentWrapperWeb: {
+    maxWidth: 1200,
+    width: '100%',
+    alignSelf: 'center',
+    paddingHorizontal: 40,
+  },
   resultsCount: {
     fontSize: 16,
     color: Colors.textSecondary,
-    marginVertical: 16,
+    marginBottom: 16,
     textAlign: 'center',
-    paddingHorizontal: 24,
   },
   candidatesList: {
-    paddingHorizontal: isWeb ? 40 : 24,
-    paddingBottom: 60,
-    maxWidth: isWeb ? 1200 : '100%',
-    alignSelf: 'center',
+    paddingBottom: 20,
   },
   candidateCard: {
     backgroundColor: Colors.white,

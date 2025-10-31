@@ -12,7 +12,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { examAPI } from '../services/api';  // Added for badge
 import Colors from '../constants/colors';
-import { ProfileIcon, ExamIcon, RankingIcon, CertificateIcon } from '../components/Icons';
+import { ProfileIcon, ExamIcon, RankingIcon, CertificateIcon, JobIcon } from '../components/Icons';
 
 const { width } = Dimensions.get('window');
 const isWeb = width > 768;
@@ -147,6 +147,14 @@ export default function EmployeeDashboard({ navigation }) {
               </View>
               <Text style={styles.actionLabel}>Certificates</Text>
               <Text style={styles.actionSubtext}>View your achievements</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('JobListings')}>
+              <View style={styles.actionIcon}>
+                <JobIcon size={32} color={Colors.primary} />
+              </View>
+              <Text style={styles.actionLabel}>Browse Jobs</Text>
+              <Text style={styles.actionSubtext}>Apply to new opportunities</Text>
             </TouchableOpacity>
           </View>
 

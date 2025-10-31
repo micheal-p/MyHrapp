@@ -1,7 +1,7 @@
-// backend/models/Job.js
+// backend/models/Job.js (New Stub - Mongoose Schema for Job Postings)
 const mongoose = require('mongoose');
 
-const JobSchema = new mongoose.Schema({
+const jobSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
@@ -12,37 +12,36 @@ const JobSchema = new mongoose.Schema({
   },
   stack: {
     type: String,
-    required: true,
+    required: true,  // e.g., "Marketing"
   },
   location: {
     type: String,
     required: true,
   },
   salaryRange: {
-    min: { type: Number },
-    max: { type: Number },
+    min: { type: Number, default: 0 },
+    max: { type: Number, default: 0 },
   },
   requirements: [{
     type: String,
   }],
-  company: {
+  applicationQuestions: [{
+    type: String,
+  }],
+  employer: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'User',  // References your User model (employer)
     required: true,
   },
   status: {
     type: String,
-    enum: ['open', 'closed', 'filled'],
-    default: 'open',
+    enum: ['Active', 'Closed'],
+    default: 'Active',
   },
-  applicants: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-  }],
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
+}, {
+  timestamps: true,
 });
 
-module.exports = mongoose.model('Job', JobSchema);
+const Job = mongoose.model('Job', jobSchema);
+
+module.exports = Job;
