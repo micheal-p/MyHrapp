@@ -1,4 +1,4 @@
-// backend/routes/rankings.js
+// backend/routes/rankings.js (Fixed - score >=0, Trim Stack, Always Fallback for Employers)
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
@@ -22,21 +22,21 @@ router.get('/leaderboard', auth, async (req, res) => {
     const query = { 
       role: 'employee',
       profileComplete: true,
-      score: { $gt: 0 }
+      score: { $gte: 0 }  // FIXED: >=0 to include low scores
     };
 
-    const trimmedStack = stack?.trim();
-    const trimmedLocation = location?.trim();
+    const trimmedStack = (stack || '').trim();  // FIXED: Trim spaces
+    const trimmedLocation = (location || '').trim();
 
     if (trimmedStack) {
-      query.stack = { $regex: trimmedStack, $options: 'i' };
+      query.stack = { $regex: new RegExp(escapeRegex(trimmedStack), 'i') };  // FIXED: Escape special chars + trim
     }
 
     if (trimmedLocation) {
       query.$or = [
-        { city: { $regex: trimmedLocation, $options: 'i' } },
-        { state: { $regex: trimmedLocation, $options: 'i' } },
-        { country: { $regex: trimmedLocation, $options: 'i' } }
+        { city: { $regex: new RegExp(escapeRegex(trimmedLocation), 'i') } },
+        { state: { $regex: new RegExp(escapeRegex(trimmedLocation), 'i') } },
+        { country: { $regex: new RegExp(escapeRegex(trimmedLocation), 'i') } }
       ];
     } else if (currentUser.role === 'employee' && view) {
       if (view === 'city' && currentUser.city) {
@@ -58,18 +58,19 @@ router.get('/leaderboard', auth, async (req, res) => {
       .sort({ score: -1, rank: 1 })
       .limit(50);
 
-    console.log(`✅ Leaderboard: ${leaderboard.length} users in ${view || 'default'}${trimmedStack ? ` for stack ${trimmedStack}` : ''}${trimmedLocation ? ` for location ${trimmedLocation}` : ''}`);
+    console.log(`✅ Leaderboard: ${leaderboard.length} users in ${view || 'default'}${trimmedStack ? ` for stack "${trimmedStack}"` : ''}${trimmedLocation ? ` for location "${trimmedLocation}"` : ''}`);
     if (leaderboard.length > 0) {
       console.log('Matched Users:', JSON.stringify(leaderboard.map(u => ({ _id: u._id, fullName: u.fullName, stack: u.stack, city: u.city, state: u.state }))));
     } else {
       console.log('No matches found. Checking all employees...');
-      const allEmployees = await User.find({ role: 'employee', profileComplete: true, score: { $gt: 0 } })
+      const allEmployees = await User.find({ role: 'employee', profileComplete: true, score: { $gte: 0 } })  // FIXED: >=0
         .select('_id fullName stack city state country score');
       console.log('All valid employees:', JSON.stringify(allEmployees));
     }
 
-    if (leaderboard.length === 0 && !trimmedStack && !trimmedLocation && currentUser.role === 'employer') {
-      const fallbackQuery = { role: 'employee', profileComplete: true, score: { $gt: 0 } };
+    let finalLeaderboard = leaderboard;
+    if (leaderboard.length === 0 && currentUser.role === 'employer') {  // FIXED: Always fallback for employers (no filter check)
+      const fallbackQuery = { role: 'employee', profileComplete: true, score: { $gte: 0 } };  // FIXED: >=0
       console.log('Fallback Query:', JSON.stringify(fallbackQuery));
       const fallbackLeaderboard = await User.find(fallbackQuery)
         .select('fullName stack experience score rank city state country skills')
@@ -79,14 +80,11 @@ router.get('/leaderboard', auth, async (req, res) => {
       if (fallbackLeaderboard.length > 0) {
         console.log('Fallback Matched Users:', JSON.stringify(fallbackLeaderboard.map(u => ({ _id: u._id, fullName: u.fullName, stack: u.stack, city: u.city, state: u.state }))));
       }
-      return res.json({ 
-        leaderboard: fallbackLeaderboard,
-        region: {}
-      });
+      finalLeaderboard = fallbackLeaderboard;
     }
 
     res.json({ 
-      leaderboard,
+      leaderboard: finalLeaderboard,
       region: currentUser.role === 'employee' ? {
         city: currentUser.city,
         state: currentUser.state,
@@ -99,6 +97,11 @@ router.get('/leaderboard', auth, async (req, res) => {
   }
 });
 
+// Helper for regex escape (FIXED for safe matching)
+function escapeRegex(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // ===============================
 // 📊 GET USER'S RANK DETAILS
 // ===============================
@@ -110,7 +113,7 @@ router.get('/my-rank', auth, async (req, res) => {
     if (!user) {
       console.log('User not found for rank:', req.userId);
       return res.status(404).json({ error: 'User not found' });
-    }
+  }
 
     const cityTotal = await User.countDocuments({
       role: 'employee',

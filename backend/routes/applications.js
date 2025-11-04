@@ -1,55 +1,55 @@
-// backend/routes/applications.js (Updated - Uses req.userId; Full Routes for Applications)
+// backend/routes/applications.js
 const express = require('express');
 const router = express.Router();
-const Application = require('../models/Application');
-const Job = require('../models/Job');  // For refs if needed
-const authMiddleware = require('../middleware/auth');  // Your middleware
+const JobApplication = require('../models/JobApplication');
+const auth = require('../middleware/auth');
 
-// FIXED: GET /api/applications/count (for employer dashboard badge)
-router.get('/count', authMiddleware, async (req, res) => {
+router.get('/count', auth, async (req, res) => {
   try {
-    const employerId = req.userId;  // FIXED: Uses your middleware's req.userId
-    const count = await Application.countDocuments({ 
-      job: { $in: await Job.find({ employer: employerId }, '_id') },  // Query jobs by employer, then apps
-      status: { $ne: 'Rejected' }  // Count pending/active
-    });
+    const count = await JobApplication.countDocuments({ applicant: req.userId });
     res.json({ count });
-  } catch (err) {
-    console.error('Count error:', err);
-    res.status(500).json({ error: 'Failed to fetch count' });
+  } catch (error) {
+    console.error('Get application count error:', error);
+    res.status(500).json({ error: 'Failed to get count' });
   }
 });
 
-// GET /api/applications (list for JobApplications screen)
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', auth, async (req, res) => {
   try {
-    const employerId = req.userId;  // FIXED: Uses req.userId
-    const jobs = await Job.find({ employer: employerId }, '_id');
-    const applications = await Application.find({ job: { $in: jobs } })
-      .populate('applicant', 'fullName stack score email cvURL')  // Populate candidate fields
-      .populate('job', 'title companyName');  // Populate job fields (add companyName to Job schema if needed)
+    const applications = await JobApplication.find({ applicant: req.userId })
+      .populate('job', 'title company location')
+      .populate({
+        path: 'job',
+        populate: {
+          path: 'company',
+          select: 'fullName companyName'
+        }
+      })
+      .sort({ appliedAt: -1 });
+
     res.json({ applications });
-  } catch (err) {
-    console.error('List error:', err);
+  } catch (error) {
+    console.error('Get applications error:', error);
     res.status(500).json({ error: 'Failed to fetch applications' });
   }
 });
 
-// PUT /api/applications/:id/status (for accept/reject)
-router.put('/:id/status', authMiddleware, async (req, res) => {
+router.put('/:appId/status', auth, async (req, res) => {
   try {
-    const { status } = req.body;  // e.g., 'Accepted' or 'Rejected'
-    const application = await Application.findByIdAndUpdate(
-      req.params.id,
+    const { status } = req.body;
+    const application = await JobApplication.findByIdAndUpdate(
+      req.params.appId,
       { status },
       { new: true }
-    ).populate('applicant', 'fullName');
+    );
+
     if (!application) {
       return res.status(404).json({ error: 'Application not found' });
     }
-    res.json({ application });
-  } catch (err) {
-    console.error('Status update error:', err);
+
+    res.json({ message: 'Status updated', application });
+  } catch (error) {
+    console.error('Update status error:', error);
     res.status(500).json({ error: 'Failed to update status' });
   }
 });

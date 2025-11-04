@@ -1,16 +1,13 @@
-// backend/routes/jobs.js (New File)
+// backend/routes/jobs.js (COMPLETE - Fixed & Clean)
 const express = require('express');
 const router = express.Router();
 const Job = require('../models/Job');
 const JobApplication = require('../models/JobApplication');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
-const multer = require('multer');  // Add: const upload = multer({ dest: 'uploads/' }); in middleware
-
-const upload = multer({ dest: 'uploads/' });  // Configure as needed
 
 // ===============================
-// 📝 POST NEW JOB (EMPLOYER) - Updated for questions
+// 📝 POST NEW JOB (EMPLOYER)
 // ===============================
 router.post('/', auth, async (req, res) => {
   try {
@@ -26,7 +23,6 @@ router.post('/', auth, async (req, res) => {
 
     await job.save();
 
-    // Update employer stats
     user.jobsPosted = (user.jobsPosted || 0) + 1;
     await user.save();
 
@@ -54,7 +50,6 @@ router.get('/', auth, async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(50);
 
-    // Add hasApplied flag for frontend
     const userId = req.userId;
     const jobsWithApplied = jobs.map(job => ({
       ...job.toObject(),
@@ -69,44 +64,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // ===============================
-// 📄 GET USER'S CVs (EMPLOYEE)
-// ===============================
-router.get('/my-cvs', auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.userId);
-    if (user.role !== 'employee') {
-      return res.status(403).json({ error: 'Only employees can view their CVs' });
-    }
-    res.json({ cvURLs: user.cvURLs });
-  } catch (error) {
-    console.error('Get CVs error:', error);
-    res.status(500).json({ error: 'Failed to fetch CVs' });
-  }
-});
-
-// ===============================
-// ⬆️ UPLOAD NEW CV (EMPLOYEE) - Reuse existing upload, append to array
-// ===============================
-router.post('/upload-cv', auth, upload.single('cv'), async (req, res) => {
-  try {
-    const user = await User.findById(req.userId);
-    if (user.role !== 'employee') {
-      return res.status(403).json({ error: 'Only employees can upload CVs' });
-    }
-
-    const cvURL = `/uploads/${req.file.filename}`;
-    user.cvURLs.push(cvURL);
-    await user.save();
-
-    res.json({ message: 'CV uploaded successfully', cvURL });
-  } catch (error) {
-    console.error('Upload CV error:', error);
-    res.status(500).json({ error: 'Failed to upload CV' });
-  }
-});
-
-// ===============================
-// ✅ APPLY TO JOB (EMPLOYEE) - Updated for questions and CV selection
+// ✅ APPLY TO JOB (EMPLOYEE)
 // ===============================
 router.post('/:jobId/apply', auth, async (req, res) => {
   try {
@@ -125,32 +83,32 @@ router.post('/:jobId/apply', auth, async (req, res) => {
     }
 
     // Handle questions if present
-    if (job.applicationQuestions.length > 0) {
+    if (job.applicationQuestions && job.applicationQuestions.length > 0) {
       const answers = req.body.answers;
       if (!answers || Object.keys(answers).length !== job.applicationQuestions.length) {
         return res.status(400).json({ error: 'All questions must be answered' });
       }
     }
 
-    // Handle CV selection/upload
-    let selectedCvURL = req.body.cvURL;  // From existing or new upload
-    if (!selectedCvURL && user.cvURLs.length === 0) {
-      return res.status(400).json({ error: 'A CV is required' });
+    // ✅ FIXED: Handle resumeUrl from request OR fallback to user's profile CV
+    let resumeUrl = req.body.resumeUrl || user.cvURL;
+    
+    if (!resumeUrl) {
+      return res.status(400).json({ error: 'A CV is required to apply' });
     }
-    if (!selectedCvURL) selectedCvURL = user.cvURLs[0];  // Default to first if not specified
 
-    // Calculate match score (skills/stack overlap + rank)
+    // Calculate match score
     let matchScore = 0;
     if (user.stack === job.stack) matchScore += 20;
-    const skillMatch = user.skills.filter(s => job.requirements.includes(s)).length;
+    const skillMatch = user.skills.filter(s => job.requirements?.includes(s)).length;
     matchScore += skillMatch * 5;
-    matchScore += (user.score / 100) * 30;  // Rank bonus
+    matchScore += (user.score / 100) * 30;
 
     const application = new JobApplication({
       job: req.params.jobId,
       applicant: req.userId,
-      answers: req.body.answers || {},  // Store question responses
-      selectedCvURL,
+      answers: req.body.answers || {},
+      resumeUrl,  // ✅ Application-specific resume
       coverLetter: req.body.coverLetter,
       matchScore: Math.round(matchScore),
     });
@@ -160,7 +118,10 @@ router.post('/:jobId/apply', auth, async (req, res) => {
     job.applicants.push(req.userId);
     await job.save();
 
-    res.json({ message: 'Applied successfully', matchScore: application.matchScore });
+    res.json({ 
+      message: 'Applied successfully', 
+      matchScore: application.matchScore 
+    });
   } catch (error) {
     console.error('Apply job error:', error);
     res.status(500).json({ error: 'Failed to apply' });
@@ -199,7 +160,8 @@ router.get('/:jobId/applications', auth, async (req, res) => {
     }
 
     const applications = await JobApplication.find({ job: req.params.jobId })
-      .populate('applicant', 'fullName email score stack skills')
+      .populate('applicant', 'fullName email score stack skills cvURL')
+      .populate('job', 'title')
       .sort({ appliedAt: -1 });
 
     res.json({ applications });
@@ -225,7 +187,6 @@ router.put('/applications/:applicationId', auth, async (req, res) => {
       return res.status(404).json({ error: 'Application not found' });
     }
 
-    // Check permissions
     const user = await User.findById(req.userId);
     if (user.role !== 'admin' && application.job.company.toString() !== req.userId) {
       return res.status(403).json({ error: 'Access denied' });

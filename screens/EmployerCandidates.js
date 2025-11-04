@@ -1,10 +1,9 @@
-// screens/EmployerCandidates.js (Fixed - Autocomplete, Input Validation)
+// screens/EmployerCandidates.js (Complete - NO LinearGradient)
 import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Dimensions,
   ActivityIndicator,
@@ -15,7 +14,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { rankingsAPI } from '../services/api';
 import Colors from '../constants/colors';
 
-// Predefined stacks and locations for autocomplete
 const STACK_SUGGESTIONS = ['Marketing', 'Software Development', 'Data Science', 'Design', 'Finance'];
 const LOCATION_SUGGESTIONS = ['Lagos', 'Abuja', 'Ifako-Ijaiye', 'Nigeria', 'Port Harcourt'];
 
@@ -37,7 +35,6 @@ export default function EmployerCandidates({ navigation }) {
 
   useEffect(() => {
     if (!user) return;
-
     fetchCandidates();
   }, [user, filters]);
 
@@ -45,16 +42,16 @@ export default function EmployerCandidates({ navigation }) {
     try {
       setLoading(true);
       setError(null);
-      // Only send valid filters (min length 2 for stack/location)
+      
       const stack = filters.stack.length >= 2 ? filters.stack : null;
       const location = filters.location.length >= 2 ? filters.location : null;
       const minScore = filters.minScore ? parseInt(filters.minScore) : null;
 
-      console.log(`Candidates URL: http://172.20.10.10:5000/api/rankings/leaderboard?${stack ? `stack=${stack}&` : ''}${location ? `location=${location}&` : ''}view=country`);
-
+      console.log('Fetching candidates with filters:', { stack, location, minScore });
+      
       const data = await rankingsAPI.getEmployerCandidates(stack, location, minScore);
-      console.log('Raw candidates response:', JSON.stringify(data));
-      setCandidates(data?.leaderboard || []);
+      console.log('Raw candidates from API:', data);
+      setCandidates(data?.leaderboard || data || []);
     } catch (err) {
       console.error('Fetch candidates error:', err);
       setError('Failed to load candidates. Please try again.');
@@ -65,8 +62,7 @@ export default function EmployerCandidates({ navigation }) {
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-
-    // Autocomplete suggestions
+    
     if (key === 'stack') {
       if (value.length >= 1) {
         const suggestions = STACK_SUGGESTIONS.filter(s => s.toLowerCase().includes(value.toLowerCase()));
@@ -133,7 +129,7 @@ export default function EmployerCandidates({ navigation }) {
 
   if (error) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
+      <View style={[styles.container, styles.centerStack]}>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity onPress={fetchCandidates} style={styles.retryButton}>
           <Text style={styles.retryButtonText}>Retry</Text>
@@ -153,7 +149,6 @@ export default function EmployerCandidates({ navigation }) {
         </View>
       </View>
 
-      {/* Filters */}
       <View style={styles.filtersContainer}>
         <View style={styles.filterRow}>
           <View style={styles.filterInputContainer}>
@@ -177,6 +172,7 @@ export default function EmployerCandidates({ navigation }) {
               </View>
             )}
           </View>
+          
           <View style={styles.filterInputContainer}>
             <TextInput
               style={styles.filterInput}
@@ -198,6 +194,7 @@ export default function EmployerCandidates({ navigation }) {
               </View>
             )}
           </View>
+          
           <TextInput
             style={styles.filterInput}
             placeholder="Min Score"
@@ -206,6 +203,7 @@ export default function EmployerCandidates({ navigation }) {
             keyboardType="numeric"
           />
         </View>
+        
         <View style={styles.filterActions}>
           <TouchableOpacity style={styles.clearButton} onPress={clearFilters}>
             <Text style={styles.clearButtonText}>Clear</Text>
@@ -213,31 +211,25 @@ export default function EmployerCandidates({ navigation }) {
         </View>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
-          <Text style={styles.resultsCount}>
-            Showing {candidates.length} candidates
-          </Text>
-          {candidates.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No Candidates Found</Text>
-              <Text style={styles.emptySubtitle}>Try adjusting your filters (e.g., Marketing, Lagos).</Text>
-            </View>
-          ) : (
-            <FlatList
-              data={candidates}
-              renderItem={renderCandidate}
-              keyExtractor={(item) => item._id}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.candidatesList}
-            />
-          )}
-        </View>
-      </ScrollView>
+      <View style={styles.listContainer}>
+        <Text style={styles.resultsCount}>
+          Showing {candidates.length} candidates
+        </Text>
+        {candidates.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>No Candidates Found</Text>
+            <Text style={styles.emptySubtitle}>Try adjusting your filters or complete employee profiles to see rankings.</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={candidates}
+            renderItem={renderCandidate}
+            keyExtractor={(item) => item._id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.candidatesList}
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -249,6 +241,10 @@ const styles = StyleSheet.create({
     ...(isWeb && { height: '100vh', overflow: 'hidden' }),
   },
   centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centerStack: {
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -294,7 +290,6 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   filterInput: {
-    flex: 1,
     borderWidth: 1,
     borderColor: Colors.lightGray,
     borderRadius: 8,
@@ -340,27 +335,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  scrollView: {
+  listContainer: {
     flex: 1,
-    ...(isWeb && { height: 'calc(100vh - 120px)', overflow: 'auto' }),
-  },
-  content: {
-    paddingVertical: 32,
-    paddingBottom: 60,
-  },
-  contentWrapper: {
     paddingHorizontal: 24,
-  },
-  contentWrapperWeb: {
-    maxWidth: 1200,
-    width: '100%',
-    alignSelf: 'center',
-    paddingHorizontal: 40,
   },
   resultsCount: {
     fontSize: 16,
     color: Colors.textSecondary,
-    marginBottom: 16,
+    marginVertical: 16,
     textAlign: 'center',
   },
   candidatesList: {
@@ -446,6 +428,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
+    paddingHorizontal: 20,
   },
   errorText: {
     fontSize: 16,

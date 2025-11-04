@@ -1,4 +1,4 @@
-// screens/EmployeeProfileSetup.js
+// screens/EmployeeProfileSetup.js (COMPLETE - FIXED ALL BUGS)
 import React, { useState } from 'react';
 import {
   View,
@@ -18,6 +18,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Country, State, City } from 'country-state-city';
 import Colors from '../constants/colors';
 import ErrorModal from '../components/ErrorModal';
+import NigeriaData from '../assets/nigeria.json';
 
 const { width } = Dimensions.get('window');
 const isWeb = width > 768;
@@ -58,7 +59,82 @@ export default function EmployeeProfileSetup({ navigation }) {
   React.useEffect(() => {
     const countries = Country.getAllCountries();
     setCountriesList(countries);
-  }, []);
+
+    if (user) {
+      setStack(user.stack || '');
+      setSkills(user.skills?.join(', ') || '');
+      setExperience(user.experience?.toString() || '');
+
+      if (user.country) {
+        const country = countries.find(c => c.name === user.country);
+        if (country) {
+          setSelectedCountry(country);
+          loadStatesForCountry(country);
+        }
+      }
+    }
+  }, [user]);
+
+  // ✅ FIXED: Added country parameter
+  const loadStatesForCountry = (country) => {
+    if (country.isoCode === 'NG') {
+      const states = NigeriaData.states.map(state => ({
+        name: state.name,
+        isoCode: state.name,
+        countryCode: 'NG',
+        lgas: state.lgas
+      }));
+      setStatesList(states);
+
+      if (user?.state) {
+        const state = states.find(s => s.name === user.state);
+        if (state) {
+          setSelectedState(state);
+          loadCitiesForState(state, country); // ✅ Pass country
+        }
+      }
+    } else {
+      const states = State.getStatesOfCountry(country.isoCode);
+      setStatesList(states);
+
+      if (user?.state) {
+        const state = states.find(s => s.name === user.state);
+        if (state) {
+          setSelectedState(state);
+          loadCitiesForState(state, country); // ✅ Pass country
+        }
+      }
+    }
+  };
+
+  // ✅ FIXED: Added country parameter with default
+  const loadCitiesForState = (state, country = selectedCountry) => {
+    if (country?.isoCode === 'NG') {
+      const stateData = NigeriaData.states.find(s => s.name === state.name);
+      if (stateData) {
+        const lgas = stateData.lgas.map(lga => ({
+          name: lga,
+          isoCode: lga,
+          stateCode: state.name,
+          countryCode: 'NG'
+        }));
+        setCitiesList(lgas);
+
+        if (user?.city) {
+          const city = lgas.find(c => c.name === user.city);
+          if (city) setSelectedCity(city);
+        }
+      }
+    } else if (country) { // ✅ Check country exists
+      const cities = City.getCitiesOfState(country.isoCode, state.isoCode);
+      setCitiesList(cities);
+
+      if (user?.city) {
+        const city = cities.find(c => c.name === user.city);
+        if (city) setSelectedCity(city);
+      }
+    }
+  };
 
   const handleCountrySelect = (country) => {
     setSelectedCountry(country);
@@ -69,29 +145,18 @@ export default function EmployeeProfileSetup({ navigation }) {
     setCountryModalVisible(false);
     setCountrySearch('');
 
-    setLoadingStates(true);
-    setTimeout(async () => {
-      try {
-        if (country.isoCode === 'NG') {
-          const response = await fetch('https://nga-states-lga.onrender.com/fetch');
-          const json = await response.json();
-          const nigerianStates = json.map(state => ({
-            name: state,
-            isoCode: state,
-            countryCode: 'NG'
-          }));
-          setStatesList(nigerianStates);
-        } else {
-          const states = State.getStatesOfCountry(country.isoCode);
-          setStatesList(states);
-        }
-      } catch (error) {
-        const states = State.getStatesOfCountry(country.isoCode);
-        setStatesList(states);
-      } finally {
-        setLoadingStates(false);
-      }
-    }, 100);
+    if (country.isoCode === 'NG') {
+      const states = NigeriaData.states.map(state => ({
+        name: state.name,
+        isoCode: state.name,
+        countryCode: 'NG',
+        lgas: state.lgas
+      }));
+      setStatesList(states);
+    } else {
+      const states = State.getStatesOfCountry(country.isoCode);
+      setStatesList(states);
+    }
   };
 
   const handleStateSelect = (state) => {
@@ -101,30 +166,21 @@ export default function EmployeeProfileSetup({ navigation }) {
     setStateModalVisible(false);
     setStateSearch('');
 
-    setLoadingCities(true);
-    setTimeout(async () => {
-      try {
-        if (selectedCountry?.isoCode === 'NG') {
-          const response = await fetch(`https://nga-states-lga.onrender.com/?state=${encodeURIComponent(state.name)}`);
-          const json = await response.json();
-          const nigerianLGAs = json.map(lga => ({
-            name: lga,
-            isoCode: lga,
-            stateCode: state.isoCode,
-            countryCode: 'NG'
-          }));
-          setCitiesList(nigerianLGAs);
-        } else {
-          const cities = City.getCitiesOfState(selectedCountry.isoCode, state.isoCode);
-          setCitiesList(cities);
-        }
-      } catch (error) {
-        const cities = City.getCitiesOfState(selectedCountry.isoCode, state.isoCode);
-        setCitiesList(cities);
-      } finally {
-        setLoadingCities(false);
+    if (selectedCountry?.isoCode === 'NG') {
+      const stateData = NigeriaData.states.find(s => s.name === state.name);
+      if (stateData) {
+        const lgas = stateData.lgas.map(lga => ({
+          name: lga,
+          isoCode: lga,
+          stateCode: state.name,
+          countryCode: 'NG'
+        }));
+        setCitiesList(lgas);
       }
-    }, 100);
+    } else {
+      const cities = City.getCitiesOfState(selectedCountry.isoCode, state.isoCode);
+      setCitiesList(cities);
+    }
   };
 
   const handleCitySelect = (city) => {
@@ -140,15 +196,23 @@ export default function EmployeeProfileSetup({ navigation }) {
         copyToCacheDirectory: true
       });
 
-      if (result.type === 'success' || !result.canceled) {
-        const file = result.assets ? result.assets[0] : result;
-        if (file.size > 5 * 1024 * 1024) {
-          showErrorModal('File Too Large', 'CV file must be less than 5MB');
-          return;
-        }
-        setCvFile(file);
+      console.log('📄 Document picker result:', result);
+
+      if (result.canceled) {
+        return;
       }
+
+      const file = result.assets ? result.assets[0] : result;
+      
+      if (file.size > 5 * 1024 * 1024) {
+        showErrorModal('File Too Large', 'CV file must be less than 5MB');
+        return;
+      }
+      
+      console.log('✅ CV file selected:', file.name);
+      setCvFile(file);
     } catch (error) {
+      console.error('❌ Document picker error:', error);
       showErrorModal('Upload Error', 'Failed to select CV file.');
     }
   };
@@ -158,10 +222,12 @@ export default function EmployeeProfileSetup({ navigation }) {
 
     setCvUploading(true);
     try {
-      const cvURL = await uploadAPI.uploadCV(cvFile.uri, cvFile.name, cvFile.mimeType);
+      console.log('📤 Uploading CV:', cvFile.name);
+      const cvURL = await uploadAPI.uploadCV(cvFile.uri, cvFile.name, cvFile.mimeType || 'application/pdf');
+      console.log('✅ CV uploaded successfully:', cvURL);
       return cvURL;
     } catch (error) {
-      console.error('CV upload error:', error);
+      console.error('❌ CV upload error:', error);
       throw error;
     } finally {
       setCvUploading(false);
@@ -185,10 +251,27 @@ export default function EmployeeProfileSetup({ navigation }) {
     try {
       const skillsArray = skills.split(',').map(skill => skill.trim()).filter(skill => skill);
       
-      let cvURL = null;
+      let cvURL = user?.cvURL || null;
+      
       if (cvFile) {
-        cvURL = await uploadCV();
+        try {
+          cvURL = await uploadCV();
+        } catch (uploadError) {
+          console.error('CV upload failed:', uploadError);
+          showErrorModal('Upload Warning', 'CV upload failed. Profile will be saved without CV update.');
+        }
       }
+
+      console.log('💾 Updating profile with data:', {
+        stack,
+        skills: skillsArray,
+        experience: parseInt(experience) || 0,
+        country: selectedCountry.name,
+        state: selectedState.name,
+        city: selectedCity.name,
+        cvURL,
+        profileComplete: true,
+      });
 
       await profileAPI.updateProfile(user.id, {
         stack: stack,
@@ -205,7 +288,7 @@ export default function EmployeeProfileSetup({ navigation }) {
 
       setSuccessVisible(true);
     } catch (error) {
-      console.error('Profile update error:', error);
+      console.error('❌ Profile update error:', error);
       showErrorModal('Update Failed', error.message || 'Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
@@ -359,11 +442,22 @@ export default function EmployeeProfileSetup({ navigation }) {
                 disabled={loading || cvUploading}
               >
                 <Text style={styles.uploadButtonText}>
-                  {cvFile ? `✓ ${cvFile.name}` : '📄 Choose File (PDF, DOC, DOCX)'}
+                  {cvFile ? `✓ ${cvFile.name}` : user?.cvURL ? '✓ CV Uploaded (tap to replace)' : '📄 Choose File (PDF, DOC, DOCX)'}
                 </Text>
               </TouchableOpacity>
               {cvFile && (
-                <Text style={styles.hint}>File size: {(cvFile.size / 1024).toFixed(2)} KB</Text>
+                <>
+                  <Text style={styles.hint}>File size: {(cvFile.size / 1024).toFixed(2)} KB</Text>
+                  <TouchableOpacity 
+                    style={styles.removeButton}
+                    onPress={() => setCvFile(null)}
+                  >
+                    <Text style={styles.removeText}>✕ Remove new file</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              {user?.cvURL && !cvFile && (
+                <Text style={styles.hint}>✓ CV already uploaded. Choose a new file to replace it.</Text>
               )}
             </View>
 
@@ -391,7 +485,7 @@ export default function EmployeeProfileSetup({ navigation }) {
                 <TouchableOpacity
                   style={styles.selectInput}
                   onPress={() => setStateModalVisible(true)}
-                  disabled={loadingStates}
+                  disabled={loadingStates || loading}
                 >
                   <Text style={selectedState ? styles.selectText : styles.selectPlaceholder}>
                     {loadingStates ? 'Loading states...' : (selectedState?.name || 'Search State')}
@@ -411,7 +505,7 @@ export default function EmployeeProfileSetup({ navigation }) {
                 <TouchableOpacity
                   style={styles.selectInput}
                   onPress={() => setCityModalVisible(true)}
-                  disabled={loadingCities}
+                  disabled={loadingCities || loading}
                 >
                   <Text style={selectedCity ? styles.selectText : styles.selectPlaceholder}>
                     {loadingCities ? 'Loading cities...' : (selectedCity?.name || 'Search City/LGA')}
@@ -435,7 +529,12 @@ export default function EmployeeProfileSetup({ navigation }) {
               activeOpacity={0.8}
             >
               {(loading || cvUploading) ? (
-                <ActivityIndicator color={Colors.white} size="small" />
+                <View style={styles.buttonContent}>
+                  <ActivityIndicator color={Colors.white} size="small" />
+                  <Text style={[styles.saveButtonText, { marginLeft: 10 }]}>
+                    {cvUploading ? 'Uploading CV...' : 'Saving...'}
+                  </Text>
+                </View>
               ) : (
                 <Text style={styles.saveButtonText}>Save Profile</Text>
               )}
@@ -624,6 +723,19 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontWeight: '600',
   },
+  removeButton: {
+    alignSelf: 'flex-end',
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#fee',
+    borderRadius: 6,
+  },
+  removeText: {
+    fontSize: 13,
+    color: '#c33',
+    fontWeight: '600',
+  },
   selectInput: {
     backgroundColor: Colors.lightGray,
     borderRadius: 12,
@@ -665,6 +777,10 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   saveButtonText: {
     color: Colors.white,

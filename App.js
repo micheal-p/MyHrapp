@@ -1,7 +1,7 @@
-// App.js (Stage 2 - Native Stack Navigator + JobApplications)
+// App.js (Complete - All Routes, Native Stack)
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';  // FIXED: Back to native-stack for RN perf
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 // Context
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -19,17 +19,19 @@ import ExamResults from './screens/ExamResults';
 import MyCertifications from './screens/MyCertifications';
 import EmployeeRankings from './screens/EmployeeRankings';
 import EmployerCandidates from './screens/EmployerCandidates';
+import JobApplications from './screens/JobApplications';
+import CandidateProfile from './screens/CandidateProfile';
 import AdminDashboard from './screens/AdminDashboard';
 import CreateExam from './screens/CreateExam';
 import PostJob from './screens/PostJob';
 import Analytics from './screens/Analytics';
 import JobListings from './screens/JobListings';
-import JobApplications from './screens/JobApplications';  // From Stage 1
+import PersonalDocuments from './screens/PersonalDocuments'; // ← NEW
 
 // Components
 import CustomSplash from './components/CustomSplash';
 
-const Stack = createNativeStackNavigator();  // FIXED: Native version
+const Stack = createNativeStackNavigator();
 
 function AppNavigator() {
   const { user, loading } = useAuth();
@@ -55,6 +57,7 @@ function AppNavigator() {
       <Stack.Screen key="MyCertifications" name="MyCertifications" component={MyCertifications} />,
       <Stack.Screen key="EmployeeRankings" name="EmployeeRankings" component={EmployeeRankings} />,
       <Stack.Screen key="JobListings" name="JobListings" component={JobListings} />,
+      <Stack.Screen key="PersonalDocuments" name="PersonalDocuments" component={PersonalDocuments} />, // ← NEW
     ];
   } else if (user.role === 'employer') {
     screens = [
@@ -63,7 +66,8 @@ function AppNavigator() {
       <Stack.Screen key="PostJob" name="PostJob" component={PostJob} />,
       <Stack.Screen key="EmployerCandidates" name="EmployerCandidates" component={EmployerCandidates} />,
       <Stack.Screen key="Analytics" name="Analytics" component={Analytics} />,
-      <Stack.Screen key="JobApplications" name="JobApplications" component={JobApplications} />,  // From Stage 1
+      <Stack.Screen key="JobApplications" name="JobApplications" component={JobApplications} />,
+      <Stack.Screen key="CandidateProfile" name="CandidateProfile" component={CandidateProfile} />,
     ];
   } else if (user.role === 'admin') {
     screens = [
@@ -82,7 +86,7 @@ function AppNavigator() {
       <Stack.Navigator 
         screenOptions={{ 
           headerShown: false,
-          animation: 'slide_from_right',  // Native-friendly animation
+          animation: 'slide_from_right',
         }}
       >
         {screens}

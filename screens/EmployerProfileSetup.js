@@ -1,4 +1,4 @@
-// screens/EmployerProfileSetup.js (Complete - Company Setup Form)
+// screens/EmployerProfileSetup.js (COMPLETE - ENHANCED ERROR LOGGING)
 import React, { useState } from 'react';
 import {
   View,
@@ -18,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Country, State, City } from 'country-state-city';
 import Colors from '../constants/colors';
 import ErrorModal from '../components/ErrorModal';
+import NigeriaData from '../assets/nigeria.json';
 
 const { width } = Dimensions.get('window');
 const isWeb = width > 768;
@@ -68,29 +69,18 @@ export default function EmployerProfileSetup({ navigation }) {
     setCountryModalVisible(false);
     setCountrySearch('');
 
-    setLoadingStates(true);
-    setTimeout(async () => {
-      try {
-        if (country.isoCode === 'NG') {
-          const response = await fetch('https://nga-states-lga.onrender.com/fetch');
-          const json = await response.json();
-          const nigerianStates = json.map(state => ({
-            name: state,
-            isoCode: state,
-            countryCode: 'NG'
-          }));
-          setStatesList(nigerianStates);
-        } else {
-          const states = State.getStatesOfCountry(country.isoCode);
-          setStatesList(states);
-        }
-      } catch (error) {
-        const states = State.getStatesOfCountry(country.isoCode);
-        setStatesList(states);
-      } finally {
-        setLoadingStates(false);
-      }
-    }, 100);
+    if (country.isoCode === 'NG') {
+      const states = NigeriaData.states.map(state => ({
+        name: state.name,
+        isoCode: state.name,
+        countryCode: 'NG',
+        lgas: state.lgas
+      }));
+      setStatesList(states);
+    } else {
+      const states = State.getStatesOfCountry(country.isoCode);
+      setStatesList(states);
+    }
   };
 
   const handleStateSelect = (state) => {
@@ -100,30 +90,21 @@ export default function EmployerProfileSetup({ navigation }) {
     setStateModalVisible(false);
     setStateSearch('');
 
-    setLoadingCities(true);
-    setTimeout(async () => {
-      try {
-        if (selectedCountry?.isoCode === 'NG') {
-          const response = await fetch(`https://nga-states-lga.onrender.com/?state=${encodeURIComponent(state.name)}`);
-          const json = await response.json();
-          const nigerianLGAs = json.map(lga => ({
-            name: lga,
-            isoCode: lga,
-            stateCode: state.isoCode,
-            countryCode: 'NG'
-          }));
-          setCitiesList(nigerianLGAs);
-        } else {
-          const cities = City.getCitiesOfState(selectedCountry.isoCode, state.isoCode);
-          setCitiesList(cities);
-        }
-      } catch (error) {
-        const cities = City.getCitiesOfState(selectedCountry.isoCode, state.isoCode);
-        setCitiesList(cities);
-      } finally {
-        setLoadingCities(false);
+    if (selectedCountry?.isoCode === 'NG') {
+      const stateData = NigeriaData.states.find(s => s.name === state.name);
+      if (stateData) {
+        const lgas = stateData.lgas.map(lga => ({
+          name: lga,
+          isoCode: lga,
+          stateCode: state.name,
+          countryCode: 'NG'
+        }));
+        setCitiesList(lgas);
       }
-    }, 100);
+    } else {
+      const cities = City.getCitiesOfState(selectedCountry.isoCode, state.isoCode);
+      setCitiesList(cities);
+    }
   };
 
   const handleCitySelect = (city) => {
@@ -154,11 +135,12 @@ export default function EmployerProfileSetup({ navigation }) {
 
     setLogoUploading(true);
     try {
-      // Use uploadAPI for image (adapt for logo)
-      const logoURL = await uploadAPI.uploadCV(logoUri, 'logo.jpg', 'image/jpeg');  // Reuse CV upload
+      console.log('📤 Uploading logo:', logoUri);
+      const logoURL = await uploadAPI.uploadImage(logoUri, 'logo.jpg', 'image/jpeg');
+      console.log('✅ Logo uploaded successfully:', logoURL);
       return logoURL;
     } catch (error) {
-      console.error('Logo upload error:', error);
+      console.error('❌ Logo upload error:', error);
       throw error;
     } finally {
       setLogoUploading(false);
@@ -171,6 +153,7 @@ export default function EmployerProfileSetup({ navigation }) {
     setErrorVisible(true);
   };
 
+  // ✅ ONLY CHANGE: Enhanced error logging to see EXACT backend error
   const handleSaveProfile = async () => {
     if (!companyName || !industry || !selectedCountry || !selectedState || !selectedCity) {
       showErrorModal('Missing Fields', 'Please fill in all required fields including City/LGA');
@@ -180,27 +163,58 @@ export default function EmployerProfileSetup({ navigation }) {
     setLoading(true);
 
     try {
-      let logoURL = null;
+      let logoURL = user?.logoURL || null;
+
       if (logoUri) {
-        logoURL = await uploadLogo();
+        try {
+          logoURL = await uploadLogo();
+          console.log('✅ Logo uploaded:', logoURL);
+        } catch (uploadError) {
+          console.error('Logo upload failed:', uploadError);
+          // Continue without logo if upload fails
+        }
       }
 
-      await profileAPI.updateProfile(user.id, {
-        companyName: companyName,
-        industry: industry,
-        logoURL: logoURL,
+      const updateData = {
+        companyName: companyName.trim(),
+        industry: industry.trim(),
         country: selectedCountry.name,
         state: selectedState.name,
         city: selectedCity.name,
         profileComplete: true,
-      });
+      };
 
-      await refreshUser();
+      if (logoURL) {
+        updateData.logoURL = logoURL;
+      }
 
-      setSuccessVisible(true);
+      console.log('💾 Sending to backend:', JSON.stringify(updateData, null, 2));
+      console.log('📍 User ID:', user.id);
+
+      // ✅ NEW: Catch and log the ACTUAL backend response
+      try {
+        const response = await profileAPI.updateProfile(user.id, updateData);
+        console.log('✅ SUCCESS - Backend response:', JSON.stringify(response, null, 2));
+        
+        await refreshUser();
+        setSuccessVisible(true);
+      } catch (apiError) {
+        // ✅ NEW: Log the exact error from backend
+        console.error('❌ BACKEND ERROR - Full object:', apiError);
+        console.error('❌ BACKEND ERROR - Message:', apiError.message);
+        console.error('❌ BACKEND ERROR - Name:', apiError.name);
+        
+        // Try to extract more details
+        if (apiError.response) {
+          console.error('❌ BACKEND ERROR - Response status:', apiError.response.status);
+          console.error('❌ BACKEND ERROR - Response data:', apiError.response.data);
+        }
+        
+        throw apiError; // Re-throw to be caught by outer catch
+      }
     } catch (error) {
-      console.error('Profile update error:', error);
-      showErrorModal('Update Failed', error.message || 'Failed to update profile. Please try again.');
+      console.error('❌ OUTER ERROR:', error);
+      showErrorModal('Update Failed', error.message || 'Failed to update profile. Check console for details.');
     } finally {
       setLoading(false);
     }
@@ -369,7 +383,7 @@ export default function EmployerProfileSetup({ navigation }) {
                 <TouchableOpacity
                   style={styles.selectInput}
                   onPress={() => setStateModalVisible(true)}
-                  disabled={loadingStates}
+                  disabled={loadingStates || loading}
                 >
                   <Text style={selectedState ? styles.selectText : styles.selectPlaceholder}>
                     {loadingStates ? 'Loading states...' : (selectedState?.name || 'Search State')}
@@ -389,7 +403,7 @@ export default function EmployerProfileSetup({ navigation }) {
                 <TouchableOpacity
                   style={styles.selectInput}
                   onPress={() => setCityModalVisible(true)}
-                  disabled={loadingCities}
+                  disabled={loadingCities || loading}
                 >
                   <Text style={selectedCity ? styles.selectText : styles.selectPlaceholder}>
                     {loadingCities ? 'Loading cities...' : (selectedCity?.name || 'Search City/LGA')}
@@ -413,7 +427,12 @@ export default function EmployerProfileSetup({ navigation }) {
               activeOpacity={0.8}
             >
               {(loading || logoUploading) ? (
-                <ActivityIndicator color={Colors.white} size="small" />
+                <View style={styles.buttonContent}>
+                  <ActivityIndicator color={Colors.white} size="small" />
+                  <Text style={[styles.saveButtonText, { marginLeft: 10 }]}>
+                    {logoUploading ? 'Uploading Logo...' : 'Saving...'}
+                  </Text>
+                </View>
               ) : (
                 <Text style={styles.saveButtonText}>Save Company Profile</Text>
               )}
@@ -643,6 +662,10 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   saveButtonText: {
     color: Colors.white,

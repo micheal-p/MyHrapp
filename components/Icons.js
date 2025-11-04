@@ -1,10 +1,9 @@
-// components/Icons.js (Updated - Added LocationIcon & SalaryIcon for JobListings)
+// components/Icons.js (COMPLETE - All Icons + TrashIcon + EyeIcon)
 import React from 'react';
 import { View } from 'react-native';
 import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
 
-// Professional icon components for MyHr app
-
+// === EXISTING ICONS (Unchanged) ===
 export const ExamIcon = ({ size = 24, color = '#0047AB' }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Rect x="4" y="4" width="16" height="16" rx="2" stroke={color} strokeWidth="2" />
@@ -119,28 +118,16 @@ export const TrophyIcon = ({ size = 24, color = '#0047AB' }) => (
 
 export const NotificationIcon = ({ size = 24, color = '#0047AB' }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path
-      d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"
-      stroke={color}
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
+    <Path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
 export const CloseIcon = ({ size = 24, color = '#0047AB' }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path
-      d="M18 6L6 18M6 6l12 12"
-      stroke={color}
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
+    <Path d="M18 6L6 18M6 6l12 12" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
-// NEW: Location Icon (Pin drop style, matches theme)
+
 export const LocationIcon = ({ size = 24, color = '#0047AB' }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke={color} strokeWidth="2" />
@@ -148,10 +135,41 @@ export const LocationIcon = ({ size = 24, color = '#0047AB' }) => (
   </Svg>
 );
 
-// NEW: Salary Icon (Money bag outline, matches theme)
 export const SalaryIcon = ({ size = 24, color = '#0047AB' }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path d="M12 2L2 7v10c0 3 4 5 6 5h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7.5" stroke={color} strokeWidth="2" strokeLinecap="round" />
-    <Path d="M6 21v-2a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth="2" />
+    <Path d="M12 6V18M9 9h6M9 15h6" stroke={color} strokeWidth="2" strokeLinecap="round" />
+  </Svg>
+);
+
+export const DocumentIcon = ({ size = 24, color = '#0047AB' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M14 2H6C4.89543 2 4 2.89543 4 4V20C4 21.1046 4.89543 22 6 22H18C19.1046 22 20 21.1046 20 20V8L14 2Z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M14 2V8H20" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M9 13H15" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    <Path d="M9 17H15" stroke={color} strokeWidth="2" strokeLinecap="round" />
+  </Svg>
+);
+
+export const DownloadIcon = ({ size = 24, color = '#0047AB' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M12 15L12 3M12 15L16 11M12 15L8 11M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+// === NEW ICONS ===
+export const TrashIcon = ({ size = 24, color = '#0047AB' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M3 6H5H21" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M10 11V17" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M14 11V17" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+export const EyeIcon = ({ size = 24, color = '#0047AB' }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <Circle cx="12" cy="12" r="3" stroke={color} strokeWidth="2" />
   </Svg>
 );

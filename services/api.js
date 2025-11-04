@@ -1,4 +1,4 @@
-// services/api.js (Complete - Fixed JSON Parse Error with Text Fallback)
+// services/api.js (Complete - Added getProfileById)
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
@@ -15,7 +15,7 @@ const getApiUrl = () => {
 };
 
 const API_URL = getApiUrl();
-console.log('🔗 Using API URL:', API_URL);
+console.log('Using API URL:', API_URL);
 
 const getToken = async () => {
   try {
@@ -27,7 +27,7 @@ const getToken = async () => {
 };
 
 // ===============================
-// 🔐 AUTH API
+// AUTH API
 // ===============================
 export const authAPI = {
   signup: async (fullName, email, password, role) => {
@@ -50,7 +50,7 @@ export const authAPI = {
       try {
         data = JSON.parse(text);
       } catch (e) {
-        console.error('❌ Failed to parse JSON:', e);
+        console.error('Failed to parse JSON:', e);
         throw new Error(`Server returned invalid JSON: ${text}`);
       }
 
@@ -88,7 +88,7 @@ export const authAPI = {
       try {
         data = JSON.parse(text);
       } catch (e) {
-        console.error('❌ Failed to parse JSON:', e);
+        console.error('Failed to parse JSON:', e);
         throw new Error(`Server returned invalid JSON: ${text}`);
       }
 
@@ -138,7 +138,7 @@ export const authAPI = {
 };
 
 // ===============================
-// 👤 PROFILE API
+// PROFILE API (Added getProfileById)
 // ===============================
 export const profileAPI = {
   updateProfile: async (userId, updates) => {
@@ -161,7 +161,6 @@ export const profileAPI = {
         throw new Error(data.error || 'Profile update failed');
       }
 
-      // ✅ Update AsyncStorage with fresh data from MongoDB
       await AsyncStorage.setItem('user', JSON.stringify(data.user));
 
       return data;
@@ -189,10 +188,8 @@ export const profileAPI = {
         throw new Error(data.error || 'Failed to fetch profile');
       }
 
-      // ✅ FIX: Extract user object from response
       const userData = data.user || data;
       
-      // ✅ Update AsyncStorage with fresh data
       await AsyncStorage.setItem('user', JSON.stringify(userData));
 
       return userData;
@@ -200,11 +197,47 @@ export const profileAPI = {
       console.error('Get profile error:', error);
       throw error;
     }
+  },
+
+  // FIXED: NEW - Get profile by ID (for employer viewing candidates)
+  getProfileById: async (userId) => {
+    try {
+      const token = await getToken();
+      
+      const response = await fetch(`${API_URL}/users/${userId}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const text = await response.text();
+      console.log('Raw getProfileById response:', text.substring(0, 200));
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error('Parse error in getProfileById:', e);
+        throw new Error(`Invalid response: ${text.substring(0, 100)}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch profile');
+      }
+
+      const userData = data.user || data;
+      return userData;
+    } catch (error) {
+      console.error('Get profile by ID error:', error);
+      throw error;
+    }
   }
 };
 
 // ===============================
-// 📄 UPLOAD API
+// UPLOAD API (FIXED - No expo-file-system)
 // ===============================
 export const uploadAPI = {
   uploadCV: async (fileUri, fileName, mimeType) => {
@@ -226,7 +259,7 @@ export const uploadAPI = {
       }
 
       const uploadUrl = `http://${Platform.OS === 'web' ? 'localhost' : YOUR_MAC_IP}:5000/api/upload/cv`;
-      console.log('Uploading to:', uploadUrl);
+      console.log('Uploading CV to:', uploadUrl);
 
       const response = await fetch(uploadUrl, {
         method: 'POST',
@@ -237,13 +270,13 @@ export const uploadAPI = {
       });
 
       const text = await response.text();
-      console.log('Upload response text:', text);
+      console.log('CV Upload response text:', text);
 
       let data;
       try {
         data = JSON.parse(text);
       } catch (e) {
-        console.error('❌ Failed to parse JSON:', e);
+        console.error('Failed to parse JSON:', e);
         throw new Error(`Server returned invalid JSON: ${text}`);
       }
 
@@ -257,10 +290,144 @@ export const uploadAPI = {
       throw error;
     }
   },
+
+  // === ADD THIS TO uploadAPI ===
+uploadImage: async (fileUri, fileName = 'image.jpg', mimeType = 'image/jpeg') => {
+  try {
+    const token = await getToken();
+
+    const formData = new FormData();
+
+    if (Platform.OS === 'web') {
+      const response = await fetch(fileUri);
+      const blob = await response.blob();
+      formData.append('image', blob, fileName);
+    } else {
+      formData.append('image', {
+        uri: fileUri,
+        name: fileName,
+        type: mimeType,
+      });
+    }
+
+    const uploadUrl = `http://${Platform.OS === 'web' ? 'localhost' : YOUR_MAC_IP}:5000/api/upload/image`;
+    console.log('Uploading image to:', uploadUrl);
+
+    const response = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const text = await response.text();
+    console.log('Image Upload response:', text);
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      throw new Error(`Server returned invalid JSON: ${text}`);
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Image upload failed');
+    }
+
+    return data.imageURL;
+  } catch (error) {
+    console.error('Upload image error:', error);
+    throw error;
+  }
+},
+
+  uploadDocument: async (formData) => {
+    try {
+      const token = await getToken();
+
+      const uploadUrl = `http://${Platform.OS === 'web' ? 'localhost' : YOUR_MAC_IP}:5000/api/upload/document`;
+      console.log('Uploading document to:', uploadUrl);
+
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const text = await response.text();
+      console.log('Document upload response:', text);
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error('Failed to parse JSON:', e);
+        throw new Error(`Invalid response: ${text.substring(0, 100)}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Document upload failed');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Upload document error:', error);
+      throw error;
+    }
+  },
+};
+
+
+
+
+// ===============================
+// DOCUMENT API
+// ===============================
+export const documentAPI = {
+  getMyDocuments: async () => {
+    try {
+      const token = await getToken();
+      const response = await fetch(`${API_URL}/upload/documents`, { // Added () around fetch
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch documents');
+      return data.documents || [];
+    } catch (error) {
+      console.error('Get documents error:', error);
+      return [];
+    }
+  },
+
+  deleteDocument: async (documentId) => {
+    try {
+      const token = await getToken();
+      const response = await fetch(`${API_URL}/upload/documents/${documentId}`, { // Added () around fetch
+        method: 'DELETE',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to delete document');
+      return data;
+    } catch (error) {
+      console.error('Delete document error:', error);
+      throw error;
+    }
+  },
 };
 
 // ===============================
-// 📝 EXAM API
+// EXAM API
 // ===============================
 export const examAPI = {
   getAvailableExamsCount: async () => {
@@ -407,7 +574,7 @@ export const examAPI = {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create exam');
+        throw new Error(data.error || 'Failed to fetch exam');
       }
 
       return data;
@@ -419,18 +586,19 @@ export const examAPI = {
 };
 
 // ===============================
-// 🏆 RANKINGS API (Fixed to Match Your Backend)
+// RANKINGS API
+// ===============================
 export const rankingsAPI = {
   getEmployeeLeaderboard: async (region = null, stack = null, location = null) => {
     try {
       const token = await getToken();
       const params = new URLSearchParams();
-      if (region) params.append('view', region);  // Fixed: Use ?view=city etc. to match /leaderboard
+      if (region) params.append('view', region);
       if (stack) params.append('stack', stack);
       if (location) params.append('location', location);
       const url = `${API_URL}/rankings/leaderboard?${params.toString()}`;
       
-      console.log('Leaderboard URL:', url);  // Debug log
+      console.log('Leaderboard URL:', url);
       
       const response = await fetch(url, {
         method: 'GET',
@@ -440,8 +608,8 @@ export const rankingsAPI = {
         },
       });
 
-      const text = await response.text();  // Read as text first
-      console.log('Raw response (first 200 chars):', text.substring(0, 200));  // Debug log
+      const text = await response.text();
+      console.log('Raw response (first 200 chars):', text.substring(0, 200));
       
       let data;
       try {
@@ -455,7 +623,7 @@ export const rankingsAPI = {
         throw new Error(data.error || `HTTP ${response.status}`);
       }
 
-      return data.leaderboard || [];  // Fixed: Match your backend response + fallback
+      return data.leaderboard || [];
     } catch (error) {
       console.error('Get employee leaderboard error:', error);
       throw error;
@@ -468,11 +636,10 @@ export const rankingsAPI = {
       const params = new URLSearchParams();
       if (stack) params.append('stack', stack);
       if (location) params.append('location', location);
-      // Fixed: No minScore in your backend—use view='country' for broad candidates
       params.append('view', 'country');
       const url = `${API_URL}/rankings/leaderboard?${params.toString()}`;
       
-      console.log('Candidates URL:', url);  // Debug log
+      console.log('Candidates URL:', url);
       
       const response = await fetch(url, {
         method: 'GET',
@@ -482,8 +649,8 @@ export const rankingsAPI = {
         },
       });
 
-      const text = await response.text();  // Read as text first
-      console.log('Raw candidates response:', text.substring(0, 200));  // Debug log
+      const text = await response.text();
+      console.log('Raw candidates response:', text.substring(0, 200));
       
       let data;
       try {
@@ -497,7 +664,7 @@ export const rankingsAPI = {
         throw new Error(data.error || 'Failed to fetch candidates');
       }
 
-      return data.leaderboard || [];  // Fixed: Return leaderboard as candidates + fallback
+      return data.leaderboard || [];
     } catch (error) {
       console.error('Get employer candidates error:', error);
       throw error;
@@ -506,7 +673,8 @@ export const rankingsAPI = {
 };
 
 // ===============================
-// 💼 JOB API (Updated - Added robust text-first parsing and logging for debugging non-JSON responses)
+// JOB API
+// ===============================
 export const jobAPI = {
   postJob: async (jobData) => {
     try {
@@ -522,7 +690,7 @@ export const jobAPI = {
         body: JSON.stringify(jobData),
       });
 
-      const text = await response.text();  // Read as text first for debugging
+      const text = await response.text();
       console.log('Post job raw response (first 200 chars):', text.substring(0, 200));
 
       let data;
@@ -537,7 +705,6 @@ export const jobAPI = {
         throw new Error(data.error || `HTTP ${response.status}: ${text.substring(0, 100)}...`);
       }
 
-      // Optionally refresh user profile to update jobsPosted count
       await profileAPI.getProfile();
 
       return data;
@@ -551,7 +718,7 @@ export const jobAPI = {
     try {
       const token = await getToken();
       
-      console.log('Fetching jobs URL:', `${API_URL}/jobs`);  // Debug log for URL
+      console.log('Fetching jobs URL:', `${API_URL}/jobs`);
       
       const response = await fetch(`${API_URL}/jobs`, {
         method: 'GET',
@@ -561,8 +728,8 @@ export const jobAPI = {
         },
       });
 
-      const text = await response.text();  // Read as text first for debugging
-      console.log('Raw jobs response (first 200 chars):', text.substring(0, 200));  // This will show the HTML error
+      const text = await response.text();
+      console.log('Raw jobs response (first 200 chars):', text.substring(0, 200));
 
       let data;
       try {
@@ -583,46 +750,37 @@ export const jobAPI = {
     }
   },
 
-  applyToJob: async (jobId, applyData = {}) => {  // Updated to accept applyData for questions/CV
+  // YOUR EXACT SNIPPET — NO CHANGES
+  applyToJob: async (jobId, applyData = {}, resumeUrl = null) => {
     try {
       const token = await getToken();
       
-      console.log('Applying to job URL:', `${API_URL}/jobs/${jobId}/apply`);  // Debug log
-      
+      const body = {
+        ...applyData,
+        resumeUrl: resumeUrl || applyData.resumeUrl, // Allow override
+      };
+
       const response = await fetch(`${API_URL}/jobs/${jobId}/apply`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(applyData),  // Send answers, cvURL, etc.
+        body: JSON.stringify(body),
       });
 
-      const text = await response.text();  // Read as text first
-      console.log('Apply job raw response (first 200 chars):', text.substring(0, 200));
-
+      const text = await response.text();
       let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        console.error('JSON parse error for applyToJob:', e);
-        throw new Error(`Invalid response: ${text.substring(0, 100)}...`);
-      }
+      try { data = JSON.parse(text); } catch { throw new Error('Invalid JSON'); }
 
-      if (!response.ok) {
-        throw new Error(data.error || `HTTP ${response.status}: ${text.substring(0, 100)}...`);
-      }
-
-      // Optionally refresh user profile if needed
+      if (!response.ok) throw new Error(data.error || 'Apply failed');
       return data;
     } catch (error) {
-      console.error('Apply to job error:', error);
+      console.error('Apply error:', error);
       throw error;
     }
   },
 
-  // FIXED: Text-first parsing + fallback to 0 on non-JSON (e.g., 404 HTML)
   getApplicationCount: async () => {
     try {
       const token = await getToken();
@@ -635,31 +793,30 @@ export const jobAPI = {
         },
       });
 
-      const text = await response.text();  // FIXED: Read as text first
-      console.log('Raw applications/count response (first 200 chars):', text.substring(0, 200));  // FIXED: Debug log for HTML/404
+      const text = await response.text();
+      console.log('Raw applications/count response (first 200 chars):', text.substring(0, 200));
 
       let data;
       try {
         data = JSON.parse(text);
       } catch (parseErr) {
         console.error('JSON parse error in getApplicationCount:', parseErr);
-        console.error('Likely HTML error page (404?):', text.substring(0, 100));  // FIXED: Log snippet
-        return 0;  // FIXED: Graceful fallback
+        console.error('Likely HTML error page (404?):', text.substring(0, 100));
+        return 0;
       }
 
       if (!response.ok) {
         console.error('HTTP error in getApplicationCount:', response.status, text.substring(0, 100));
-        return 0;  // FIXED: Fallback on non-200
+        return 0;
       }
 
       return data.count || 0;
     } catch (error) {
       console.error('Get application count error:', error);
-      return 0;  // FIXED: Always return 0 on any error
+      return 0;
     }
   },
 
-  // For employer dashboard: Get list of applications (for notifications section)
   getMyApplications: async () => {
     try {
       const token = await getToken();
@@ -685,11 +842,11 @@ export const jobAPI = {
     }
   },
 
-  getApplications: async () => {  // Alias for getMyApplications (for JobApplications.js)
+  getApplications: async () => {
     return jobAPI.getMyApplications();
   },
 
-  updateApplicationStatus: async (appId, updates) => {  // For accept/reject
+  updateApplicationStatus: async (appId, updates) => {
     try {
       const token = await getToken();
       const response = await fetch(`${API_URL}/applications/${appId}/status`, {
@@ -712,7 +869,7 @@ export const jobAPI = {
 };
 
 // ===============================
-// 👑 ADMIN API
+// ADMIN API
 // ===============================
 export const adminAPI = {
   getStats: async () => {

@@ -1,4 +1,4 @@
-// screens/EmployeeDashboard.js
+// screens/EmployeeDashboard.js (COMPLETE - Fixed Navigation + Personal Documents)
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -8,27 +8,57 @@ import {
   TouchableOpacity,
   Dimensions,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
-import { examAPI } from '../services/api';  // Added for badge
+import { examAPI, jobAPI } from '../services/api';
 import Colors from '../constants/colors';
-import { ProfileIcon, ExamIcon, RankingIcon, CertificateIcon, JobIcon } from '../components/Icons';
+import {
+  ProfileIcon,
+  ExamIcon,
+  RankingIcon,
+  CertificateIcon,
+  JobIcon,
+  DocumentIcon,
+} from '../components/Icons';
 
 const { width } = Dimensions.get('window');
 const isWeb = width > 768;
 
 export default function EmployeeDashboard({ navigation }) {
-  const { user, logout, loading } = useAuth();
-  const [availableExamsCount, setAvailableExamsCount] = useState(0);  // Added for badge
+  const { user, logout, loading, refreshUser } = useAuth();
+  const [availableExamsCount, setAvailableExamsCount] = useState(0);
+  const [applicationCount, setApplicationCount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (user) {
-      examAPI.getAvailableExamsCount().then(count => setAvailableExamsCount(count));
+      fetchDashboardData();
     }
-  }, [user]);  // Added to fetch count on user load
+  }, [user]);
+
+  const fetchDashboardData = async () => {
+    try {
+      const [examsCount, appsCount] = await Promise.all([
+        examAPI.getAvailableExamsCount(),
+        jobAPI.getApplicationCount(),
+      ]);
+      setAvailableExamsCount(examsCount);
+      setApplicationCount(appsCount);
+    } catch (error) {
+      console.error('Dashboard fetch error:', error);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refreshUser();
+    await fetchDashboardData();
+    setRefreshing(false);
+  };
 
   const handleLogout = async () => {
-    await logout();  // Sets user=null in context → Auto-renders auth screens
+    await logout();
   };
 
   if (loading || !user) {
@@ -59,6 +89,9 @@ export default function EmployeeDashboard({ navigation }) {
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
           <View style={styles.rankCard}>
@@ -71,6 +104,7 @@ export default function EmployeeDashboard({ navigation }) {
             </Text>
           </View>
 
+          {/* ✅ FIXED: Stats Grid with Applications */}
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
               <Text style={styles.statValue}>{user?.score || 0}</Text>
@@ -81,8 +115,8 @@ export default function EmployeeDashboard({ navigation }) {
               <Text style={styles.statLabel}>Exams Taken</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{user?.certifications?.length || 0}</Text>
-              <Text style={styles.statLabel}>Certificates</Text>
+              <Text style={styles.statValue}>{applicationCount}</Text>
+              <Text style={styles.statLabel}>Applications</Text>
             </View>
           </View>
 
@@ -102,19 +136,26 @@ export default function EmployeeDashboard({ navigation }) {
                 style={styles.completeButton}
                 onPress={() => navigation.navigate('EmployeeProfileSetup')}
               >
-                <Text style={styles.completeButtonText}>Complete Profile →</Text>
+                <Text style={styles.completeButtonText}>Complete Profile</Text>
               </TouchableOpacity>
             </View>
           )}
 
           <Text style={styles.sectionTitle}>Quick Actions</Text>
+          
+          {/* ✅ FIXED: Grid with Personal Documents */}
           <View style={styles.actionsGrid}>
-            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('AvailableExams')}>
+            <TouchableOpacity 
+              style={styles.actionCard} 
+              onPress={() => navigation.navigate('AvailableExams')}
+            >
               <View style={styles.actionIcon}>
                 <ExamIcon size={32} color={Colors.primary} />
                 {availableExamsCount > 0 && (
                   <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{availableExamsCount > 9 ? '9+' : availableExamsCount}</Text>
+                    <Text style={styles.badgeText}>
+                      {availableExamsCount > 9 ? '9+' : availableExamsCount}
+                    </Text>
                   </View>
                 )}
               </View>
@@ -122,7 +163,10 @@ export default function EmployeeDashboard({ navigation }) {
               <Text style={styles.actionSubtext}>Start your certification</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('EmployeeRankings')}>
+            <TouchableOpacity 
+              style={styles.actionCard} 
+              onPress={() => navigation.navigate('EmployeeRankings')}
+            >
               <View style={styles.actionIcon}>
                 <RankingIcon size={32} color={Colors.primary} />
               </View>
@@ -141,7 +185,10 @@ export default function EmployeeDashboard({ navigation }) {
               <Text style={styles.actionSubtext}>Update your info</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('MyCertifications')}>
+            <TouchableOpacity 
+              style={styles.actionCard} 
+              onPress={() => navigation.navigate('MyCertifications')}
+            >
               <View style={styles.actionIcon}>
                 <CertificateIcon size={32} color={Colors.primary} />
               </View>
@@ -149,12 +196,27 @@ export default function EmployeeDashboard({ navigation }) {
               <Text style={styles.actionSubtext}>View your achievements</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('JobListings')}>
+            <TouchableOpacity 
+              style={styles.actionCard} 
+              onPress={() => navigation.navigate('JobListings')}
+            >
               <View style={styles.actionIcon}>
                 <JobIcon size={32} color={Colors.primary} />
               </View>
               <Text style={styles.actionLabel}>Browse Jobs</Text>
-              <Text style={styles.actionSubtext}>Apply to new opportunities</Text>
+              <Text style={styles.actionSubtext}>Apply to opportunities</Text>
+            </TouchableOpacity>
+
+            {/* ✅ RESTORED: Personal Documents */}
+            <TouchableOpacity 
+              style={styles.actionCard} 
+              onPress={() => navigation.navigate('PersonalDocuments')}
+            >
+              <View style={styles.actionIcon}>
+                <DocumentIcon size={32} color={Colors.primary} />
+              </View>
+              <Text style={styles.actionLabel}>My Documents</Text>
+              <Text style={styles.actionSubtext}>Upload & manage files</Text>
             </TouchableOpacity>
           </View>
 
@@ -162,7 +224,7 @@ export default function EmployeeDashboard({ navigation }) {
             <View style={styles.summaryCard}>
               <Text style={styles.summaryTitle}>Profile Summary</Text>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Role:</Text>
+                <Text style={styles.summaryLabel}>Stack:</Text>
                 <Text style={styles.summaryValue}>{user?.stack || 'Not set'}</Text>
               </View>
               <View style={styles.summaryRow}>
@@ -178,7 +240,7 @@ export default function EmployeeDashboard({ navigation }) {
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Skills:</Text>
                 <Text style={styles.summaryValue}>
-                  {user?.skills?.join(', ') || 'None'}
+                  {user?.skills?.length > 0 ? user.skills.join(', ') : 'None'}
                 </Text>
               </View>
             </View>
@@ -393,7 +455,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderRadius: 16,
     padding: 20,
-    width: isWeb ? 'calc(25% - 12px)' : 'calc(50% - 8px)',
+    width: isWeb ? 'calc(33.33% - 11px)' : 'calc(50% - 8px)',
     minWidth: 140,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -403,6 +465,7 @@ const styles = StyleSheet.create({
   },
   actionIcon: {
     marginBottom: 12,
+    position: 'relative',
   },
   actionLabel: {
     fontSize: 16,
@@ -448,21 +511,21 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontWeight: '500',
   },
-  // Added for badge
   badge: {
     position: 'absolute',
     right: -8,
     top: -8,
-    backgroundColor: 'red',
+    backgroundColor: '#EF4444',
     borderRadius: 12,
     minWidth: 24,
     height: 24,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 6,
   },
   badgeText: {
     color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

@@ -1,4 +1,4 @@
-// backend/models/User.js (Complete - Updated with cvURLs Array)
+// backend/models/User.js (FIXED - Added logoURL field)
 const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
@@ -24,6 +24,9 @@ const UserSchema = new mongoose.Schema({
     type: String,
   },
   industry: {
+    type: String,
+  },
+  logoURL: {  // ✅ ADDED: For employer company logo
     type: String,
   },
   profileComplete: {
@@ -69,10 +72,10 @@ const UserSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
-  cvURL: {  // Legacy single CV (keep for backward compat, migrate to cvURLs)
+  cvURL: {
     type: String,
   },
-  cvURLs: [{  // New: Array for multiple CVs
+  cvURLs: [{
     type: String,
     default: [],
   }],
@@ -80,6 +83,10 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  profileComplete: {
+  type: Boolean,
+  default: false,
+},
 });
 
 module.exports = mongoose.model('User', UserSchema);

@@ -1,13 +1,9 @@
-// backend/server.js (Fixed - Typo in Require, Duplicates Removed)
-require('dotenv');  // FIXED: Early dotenv load (was 'requirement')
+// backend/server.js
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-
-// Load .env (dotenv already required above)
-const dotenv = require('dotenv');
-dotenv.config();
 
 const app = express();
 
@@ -23,7 +19,6 @@ mongoose.connect(process.env.MONGO_URI)
     process.exit(1);
   });
 
-// Routes (All before app.listen - Fixed, Added applications routes)
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const uploadRoutes = require('./routes/upload');
@@ -31,7 +26,7 @@ const examRoutes = require('./routes/exams');
 const rankingsRoutes = require('./routes/rankings');
 const adminRoutes = require('./routes/admin');
 const jobsRoutes = require('./routes/jobs');
-const applicationsRoutes = require('./routes/applications');  // NEW: Applications routes
+const applicationsRoutes = require('./routes/applications');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -40,9 +35,8 @@ app.use('/api/exams', examRoutes);
 app.use('/api/rankings', rankingsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/jobs', jobsRoutes);
-app.use('/api/applications', applicationsRoutes);  // NEW: Mount applications
+app.use('/api/applications', applicationsRoutes);
 
-// Health checks
 app.get('/', (req, res) => {
   res.json({
     message: 'MyHr API is running!',
@@ -55,7 +49,6 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK' });
 });
 
-// Global error handler
 app.use((err, req, res, next) => {
   console.error('Server Error:', err);
   res.status(500).json({
@@ -67,7 +60,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📱 Mobile: http://172.20.10.10:${PORT}`);  // Updated IP to match frontend logs
+  console.log(`📱 Mobile: http://172.20.10.10:${PORT}`);
   console.log(`💻 Local: http://localhost:${PORT}`);
 });
 
